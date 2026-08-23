@@ -113,6 +113,10 @@ export class LcuClient extends EventEmitter {
     return this.requestJson<T>("DELETE", endpoint);
   }
 
+  async restartLeagueUx(): Promise<void> {
+    await this.post<void>("/riotclient/kill-and-restart-ux");
+  }
+
   async getAsset(endpoint: string): Promise<{ body: Buffer; contentType: string }> {
     if (!allowedLcuAssetEndpoint(endpoint)) {
       throw new Error("Only local game-data assets may be proxied.");

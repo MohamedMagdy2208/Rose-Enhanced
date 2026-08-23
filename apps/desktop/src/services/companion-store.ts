@@ -7,6 +7,7 @@ import {
   type IntegrationState,
 } from "@rose-enhanced/contracts";
 import type { PersistedSettings } from "@rose-enhanced/core";
+import { clientUxReloadDisposition } from "./client-tab-activation";
 import { emptyLeagueSessionState } from "./league-session-state";
 
 const capabilities = {
@@ -44,17 +45,31 @@ function clientTabDoctorCheck(snapshot: CompanionSnapshot): ConnectionDoctorChec
   }
   const installedCurrent = snapshot.clientTab.installedPluginVersion === snapshot.clientTab.expectedPluginVersion
     && snapshot.clientTab.installedProtocolVersion === snapshot.clientTab.protocolVersion;
-  const current = snapshot.clientTab.activeProtocolVersion === snapshot.clientTab.protocolVersion
+  const activeSessionReported = snapshot.clientTab.activeProtocolVersion !== null
+    && snapshot.clientTab.activePluginVersion !== null;
+  const activeSessionCurrent = snapshot.clientTab.activeProtocolVersion === snapshot.clientTab.protocolVersion
     && snapshot.clientTab.activePluginVersion === snapshot.clientTab.expectedPluginVersion;
-  if (!installedCurrent || !current || snapshot.clientTab.restartRequired) {
+  if (!installedCurrent || snapshot.clientTab.restartRequired || (activeSessionReported && !activeSessionCurrent)) {
     const detail = snapshot.clientTab.restartRequired
-      ? "The integration was repaired. Restart League to activate it."
+      ? pendingClientTabActivationDetail(snapshot)
       : !installedCurrent
         ? "The installed plugin does not match the current desktop protocol."
         : "League has not loaded the current integration protocol.";
     return { id: "clientTab", label: "League client tab", status: "attention", detail, action: "repair-client-tab" };
   }
-  return { id: "clientTab", label: "League client tab", status: "healthy", detail: `Plugin ${snapshot.clientTab.activePluginVersion} is active.`, action: null };
+  const detail = activeSessionReported
+    ? `Plugin ${snapshot.clientTab.activePluginVersion} is active.`
+    : `Plugin ${snapshot.clientTab.installedPluginVersion} is installed. Its bridge handshake starts when the tab opens.`;
+  return { id: "clientTab", label: "League client tab", status: "healthy", detail, action: null };
+}
+
+function pendingClientTabActivationDetail(snapshot: CompanionSnapshot): string {
+  const disposition = clientUxReloadDisposition(snapshot.connection);
+  if (disposition === "reload") return "The integration was repaired and League's UI is being reloaded automatically.";
+  if (disposition === "defer") {
+    return `The integration was repaired. Its UI reload is queued until Home or Lobby (current phase: ${snapshot.connection.phase}).`;
+  }
+  return "The integration was repaired and will activate the next time League starts.";
 }
 
 function collectionDoctorCheck(snapshot: CompanionSnapshot): ConnectionDoctorCheck {

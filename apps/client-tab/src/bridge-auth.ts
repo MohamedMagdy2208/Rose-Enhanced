@@ -63,6 +63,6 @@ export function receiveBridgeAuthorization(
 
 export function assertCurrentProtocol(authorization: BridgeAuthorization): void {
   if (authorization.protocolVersion !== CLIENT_TAB_PROTOCOL_VERSION) {
-    throw new Error("The Rose Enhanced client integration is outdated. Repair it, then restart League.");
+    throw new Error("The Rose Enhanced client integration is outdated. Repair it from the desktop app; League will reload automatically when safe.");
   }
 }

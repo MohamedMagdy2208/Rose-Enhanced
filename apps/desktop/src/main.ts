@@ -14,6 +14,7 @@ import { allowedExternalUrl } from "./electron-security";
 import { AutomationService } from "./services/automation-service";
 import { AramService } from "./services/aram-service";
 import { BridgeServer } from "./services/bridge-server";
+import { ClientTabActivationService } from "./services/client-tab-activation";
 import { CollectionService } from "./services/collection-service";
 import { CommandRouter } from "./services/command-router";
 import { CompanionStore } from "./services/companion-store";
@@ -54,6 +55,7 @@ async function bootstrap(): Promise<void> {
   const aram = new AramService(lcu, store, settings, notifyUser);
   const integrations = new IntegrationService(store, settings, logger);
   const pengu = new PenguManager(store, settings, logger);
+  const clientTabActivation = new ClientTabActivationService(lcu, store, logger);
 
   if (installClientSurface || rotateClientToken) {
     if (rotateClientToken) await settings.rotateBridgeToken();
@@ -92,6 +94,7 @@ async function bootstrap(): Promise<void> {
     insights,
     leagueSession,
     pengu,
+    clientTabActivation,
     remote,
     openDesktop,
     chooseExecutable,
@@ -102,12 +105,16 @@ async function bootstrap(): Promise<void> {
     store,
     lcu,
     dispatch: (command) => router.dispatch(command),
-    registerClientSession: (protocolVersion, pluginVersion) => pengu.registerActiveSession(protocolVersion, pluginVersion),
+    registerClientSession: (protocolVersion, pluginVersion) => {
+      pengu.registerActiveSession(protocolVersion, pluginVersion);
+      void clientTabActivation.activatePending();
+    },
     logger,
   });
   const unregisterIpc = registerIpc({ window: mainWindow, store, router, remote, logger });
 
   lcu.on("state", (state) => store.update((snapshot) => { snapshot.connection = state; }));
+  clientTabActivation.start();
   collection.start();
   await insights.start();
   leagueSession.start();
@@ -120,6 +127,7 @@ async function bootstrap(): Promise<void> {
 
   app.on("before-quit", () => {
     isQuitting = true;
+    clientTabActivation.stop();
     automation.stop();
     leagueSession.stop();
     insights.stop();

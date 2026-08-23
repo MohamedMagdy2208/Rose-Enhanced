@@ -3,6 +3,7 @@ import { companionCommandSchema } from "@rose-enhanced/contracts";
 import type { AutomationService } from "./automation-service";
 import type { AramService } from "./aram-service";
 import type { CollectionService } from "./collection-service";
+import type { ClientTabActivationResult, ClientTabActivationService } from "./client-tab-activation";
 import type { CompanionStore } from "./companion-store";
 import type { IntegrationService } from "./integration-service";
 import type { InsightsService } from "./insights-service";
@@ -22,6 +23,7 @@ interface CommandRouterDependencies {
   insights: InsightsService;
   leagueSession: LeagueSessionService;
   pengu: PenguManager;
+  clientTabActivation: ClientTabActivationService;
   remote: RemoteService;
   openDesktop: () => void;
   chooseExecutable: (id: "rose" | "deceive") => Promise<string | null>;
@@ -36,8 +38,8 @@ export class CommandRouter {
     if (!parsed.success) return { ok: false, message: "The command was rejected by runtime validation." };
     const command = parsed.data;
     try {
-      await this.execute(command);
-      return { ok: true, message: this.successMessage(command) };
+      const message = await this.execute(command);
+      return { ok: true, message: message ?? this.successMessage(command) };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.dependencies.logger.warn("Command failed", { command: command.type, error: message });
@@ -45,7 +47,7 @@ export class CommandRouter {
     }
   }
 
-  private async execute(command: CompanionCommand): Promise<void> {
+  private async execute(command: CompanionCommand): Promise<string | void> {
     switch (command.type) {
       case "desktop.open":
         this.dependencies.openDesktop();
@@ -163,10 +165,10 @@ export class CommandRouter {
         return;
       case "clientTab.install":
         await this.dependencies.pengu.install();
-        return;
+        return this.clientTabActivationMessage("installed", await this.dependencies.clientTabActivation.activatePending("command"));
       case "clientTab.repair":
         await this.dependencies.pengu.install();
-        return;
+        return this.clientTabActivationMessage("repaired", await this.dependencies.clientTabActivation.activatePending("command"));
       case "clientTab.uninstall":
         await this.dependencies.pengu.uninstall();
         return;
@@ -196,6 +198,19 @@ export class CommandRouter {
     }
   }
 
+  private clientTabActivationMessage(
+    action: "installed" | "repaired",
+    activation: ClientTabActivationResult,
+  ): string {
+    const prefix = `Client integration ${action}.`;
+    if (activation.status === "reloaded") return `${prefix} League's UI is reloading now; the game process was not touched.`;
+    if (activation.status === "deferred") return `${prefix} The UI reload is queued until League returns to Home or Lobby (current phase: ${activation.phase}).`;
+    if (activation.status === "next-launch") return `${prefix} It will load automatically the next time League starts.`;
+    if (activation.status === "already-requested") return `${prefix} A League UI reload has already been requested.`;
+    if (activation.status === "failed") throw new Error(activation.message);
+    return prefix;
+  }
+
   private successMessage(command: CompanionCommand): string {
     if (command.type === "desktop.open") return "Desktop app opened.";
     if (command.type === "collection.refresh") return "Collection synchronized.";
@@ -211,8 +226,8 @@ export class CommandRouter {
     if (command.type === "automation.setMode") return `Automation mode changed to ${command.mode}.`;
     if (command.type === "automation.confirm") return "Automation action confirmed.";
     if (command.type === "automation.dismiss") return "Automation action dismissed.";
-    if (command.type === "clientTab.install") return "Client integration installed. Restart the League client to load it.";
-    if (command.type === "clientTab.repair") return "Client integration repaired. Restart League to activate it.";
+    if (command.type === "clientTab.install") return "Client integration installed.";
+    if (command.type === "clientTab.repair") return "Client integration repaired.";
     if (command.type === "clientTab.uninstall") return "Client integration removed. Restart the League client to unload it.";
     if (command.type === "doctor.refresh") return "Connection checks refreshed.";
     if (command.type === "aram.toggleFavoriteChampion") return "ARAM favorite updated.";

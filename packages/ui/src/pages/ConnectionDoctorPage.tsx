@@ -72,7 +72,7 @@ function DoctorCheckRow({
       <div><h2>{check.label}</h2><p>{check.detail}</p></div>
       {action ? (
         <button className="button button--secondary" type="button" onClick={() => onCommand(commandFor(action))}>
-          <Wrench size={15} /> {action === "repair-client-tab" ? "Repair" : "Refresh"}
+          <Wrench size={15} /> {action === "repair-client-tab" ? "Repair & reload" : "Refresh"}
         </button>
       ) : null}
     </article>

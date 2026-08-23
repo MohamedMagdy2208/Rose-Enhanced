@@ -26,7 +26,7 @@ try {
       <p className="eyebrow">Connection doctor</p>
       <h1>Client integration needs attention</h1>
       <p>{message}</p>
-      <p>Open Rose Enhanced on Windows, choose Diagnostics, and run Repair client tab.</p>
+      <p>Open Rose Enhanced on Windows, choose Diagnostics, and run Repair &amp; reload. Active games and champion select are never interrupted.</p>
     </main>,
   );
 }

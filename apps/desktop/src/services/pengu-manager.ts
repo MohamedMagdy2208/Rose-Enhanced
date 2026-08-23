@@ -101,10 +101,19 @@ export class PenguManager {
 
   registerActiveSession(protocolVersion: number | null, pluginVersion: string | null): void {
     this.store.update((snapshot) => {
+      const activeSessionReported = protocolVersion !== null && pluginVersion !== null;
       snapshot.clientTab.activeProtocolVersion = protocolVersion;
       snapshot.clientTab.activePluginVersion = pluginVersion;
-      snapshot.clientTab.restartRequired =
-        protocolVersion !== CLIENT_TAB_PROTOCOL_VERSION || pluginVersion !== CLIENT_TAB_PLUGIN_VERSION;
+      if (!activeSessionReported) return;
+
+      const activeSessionCurrent = protocolVersion === CLIENT_TAB_PROTOCOL_VERSION
+        && pluginVersion === CLIENT_TAB_PLUGIN_VERSION;
+      const installedPluginCurrent = snapshot.clientTab.installedPluginVersion === CLIENT_TAB_PLUGIN_VERSION
+        && snapshot.clientTab.installedProtocolVersion === CLIENT_TAB_PROTOCOL_VERSION;
+      snapshot.clientTab.restartRequired = !activeSessionCurrent;
+      if (!activeSessionCurrent && installedPluginCurrent && !snapshot.clientTab.lastRepairAt) {
+        snapshot.clientTab.lastRepairAt = new Date().toISOString();
+      }
     });
   }
 

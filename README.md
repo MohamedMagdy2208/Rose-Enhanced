@@ -124,14 +124,16 @@ For the most reliable first setup, use this order:
 
 1. Open **Rose Enhanced** with the launcher and leave it running in the tray.
 2. Open the separately installed **Rose** application.
-3. Start or restart the **League client** so Rose/Pengu loads the Enhanced tab.
+3. Start the **League client** so Rose/Pengu loads the Enhanced tab.
 
 After the client tab has been installed and loaded once, the exact order of the
 first two applications is less important. Rose Enhanced must still be running
 before you use the Enhanced tab because it owns the secure local bridge and all
-League connections. If Rose or League was already open during a plugin install,
-repair, or update, restart League once. The launcher deliberately does not start
-Rose or League for you.
+League connections. If League is already open during a plugin install, repair,
+or update, Rose Enhanced asks League to reload only its UI automatically from
+Home or Lobby. The reload is deferred during matchmaking, ready check, champion
+select, and active games. The launcher deliberately does not start Rose or
+League for you.
 
 ## Mobile relay development
 

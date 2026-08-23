@@ -1,4 +1,4 @@
-import type { CompanionSnapshot } from "@rose-enhanced/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION, type CompanionSnapshot } from "@rose-enhanced/contracts";
 
 export const emptySnapshot: CompanionSnapshot = {
   revision: 0,
@@ -85,7 +85,7 @@ export const emptySnapshot: CompanionSnapshot = {
   ],
   clientTab: {
     installed: false,
-    expectedPluginVersion: "0.7.0",
+    expectedPluginVersion: CLIENT_TAB_PLUGIN_VERSION,
     installedPluginVersion: null,
     installedProtocolVersion: null,
     activePluginVersion: null,
