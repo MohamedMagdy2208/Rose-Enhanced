@@ -124,6 +124,14 @@
     setNavigationActive(false);
   };
 
+  const closeOverlayForLeagueChrome = (event) => {
+    const overlay = document.getElementById(ids.overlay);
+    const target = event.target;
+    if (!overlay || !(target instanceof Node)) return;
+    if (overlay.contains(target) || document.getElementById(ids.navigation)?.contains(target)) return;
+    removeOverlay();
+  };
+
   const closeOverlay = (afterClose) => {
     removeOverlay();
     afterClose();
@@ -427,6 +435,7 @@
     synchronizeIntegration();
     const observer = new MutationObserver(synchronizeIntegration);
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("click", closeOverlayForLeagueChrome, true);
     window.addEventListener("rose-open-settings", () => {
       window.setTimeout(installRoseEntry, 0);
     });

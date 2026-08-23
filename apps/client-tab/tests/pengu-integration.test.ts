@@ -151,6 +151,34 @@ describe("Pengu client-surface integration", () => {
     expect(window.document.activeElement).toBe(navigation);
   });
 
+  // Regression: the 2026-08-24 overlay hid Loot after its League navigation item was clicked.
+  it("closes before another League navigation destination handles the click", async () => {
+    const window = createWindow();
+    window.document.body.innerHTML = `
+      <nav class="right-nav-menu">
+        <lol-uikit-navigation-item id="loot-navigation">Loot</lol-uikit-navigation-item>
+      </nav>
+    `;
+    await loadBootstrap(window);
+    const enhancedNavigation = window.document.querySelector<HTMLElement>(
+      "#rose-enhanced-navigation-item",
+    );
+    const lootNavigation = window.document.querySelector<HTMLElement>(
+      "#loot-navigation",
+    );
+    let leagueNavigationClicks = 0;
+    lootNavigation?.addEventListener("click", () => { leagueNavigationClicks += 1; });
+
+    enhancedNavigation?.click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(window.document.getElementById("rose-enhanced-client-overlay")).not.toBeNull();
+
+    lootNavigation?.click();
+    expect(window.document.getElementById("rose-enhanced-client-overlay")).toBeNull();
+    expect(enhancedNavigation?.getAttribute("aria-expanded")).toBe("false");
+    expect(leagueNavigationClicks).toBe(1);
+  });
+
   // Regression: the 2026-08-23 stopped-host incident rendered Chromium's raw error page.
   it("shows a retryable in-client status when the desktop companion is stopped", async () => {
     const window = createWindow();
