@@ -1,0 +1,24 @@
+import { describe, expect, it } from "vitest";
+import { redactSensitive } from "./redaction";
+
+describe("redactSensitive", () => {
+  it("redacts sensitive keys and authorization strings", () => {
+    expect(
+      redactSensitive({
+        password: "secret",
+        nested: { puuid: "personal", message: "Basic dXNlcjpwYXNz" },
+      }),
+    ).toEqual({
+      password: "[REDACTED]",
+      nested: { puuid: "[REDACTED]", message: "Basic [REDACTED]" },
+    });
+  });
+
+  it.each([
+    ["Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature", "Authorization: Bearer [REDACTED]"],
+    ["wss://relay/socket#secret=pairing-secret", "wss://relay/socket#secret=[REDACTED]"],
+    ["rose-enhanced-auth.token_123-abc", "rose-enhanced-auth.[REDACTED]"],
+  ])("redacts secrets embedded in log text", (source, expected) => {
+    expect(redactSensitive(source)).toBe(expected);
+  });
+});

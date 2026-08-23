@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rose-enhanced-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "PairingRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PairingRoom"] }
+  ],
+  "vars": {
+    "MOBILE_ORIGIN": "https://remote.example.invalid"
+  }
+}

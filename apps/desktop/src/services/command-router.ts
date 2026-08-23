@@ -1,0 +1,223 @@
+import type { CompanionCommand, CommandResult } from "@rose-enhanced/contracts";
+import { companionCommandSchema } from "@rose-enhanced/contracts";
+import type { AutomationService } from "./automation-service";
+import type { AramService } from "./aram-service";
+import type { CollectionService } from "./collection-service";
+import type { CompanionStore } from "./companion-store";
+import type { IntegrationService } from "./integration-service";
+import type { InsightsService } from "./insights-service";
+import type { LeagueSessionService } from "./league-session-service";
+import type { PenguManager } from "./pengu-manager";
+import type { RemoteService } from "./remote-service";
+import type { SettingsStore } from "./settings-store";
+import type { AppLogger } from "./logger";
+
+interface CommandRouterDependencies {
+  store: CompanionStore;
+  settings: SettingsStore;
+  collection: CollectionService;
+  automation: AutomationService;
+  aram: AramService;
+  integrations: IntegrationService;
+  insights: InsightsService;
+  leagueSession: LeagueSessionService;
+  pengu: PenguManager;
+  remote: RemoteService;
+  openDesktop: () => void;
+  chooseExecutable: (id: "rose" | "deceive") => Promise<string | null>;
+  logger: AppLogger;
+}
+
+export class CommandRouter {
+  constructor(private readonly dependencies: CommandRouterDependencies) {}
+
+  async dispatch(input: unknown): Promise<CommandResult> {
+    const parsed = companionCommandSchema.safeParse(input);
+    if (!parsed.success) return { ok: false, message: "The command was rejected by runtime validation." };
+    const command = parsed.data;
+    try {
+      await this.execute(command);
+      return { ok: true, message: this.successMessage(command) };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.dependencies.logger.warn("Command failed", { command: command.type, error: message });
+      return { ok: false, message };
+    }
+  }
+
+  private async execute(command: CompanionCommand): Promise<void> {
+    switch (command.type) {
+      case "desktop.open":
+        this.dependencies.openDesktop();
+        return;
+      case "automation.acknowledgeRisk": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.automation.riskAcknowledged = true;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
+        return;
+      }
+      case "automation.setMode": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.automation.executionMode = command.mode;
+        });
+        this.dependencies.automation.clearPending();
+        this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
+        return;
+      }
+      case "automation.confirm":
+        await this.dependencies.automation.confirmPending(command.pendingId);
+        return;
+      case "automation.dismiss":
+        this.dependencies.automation.dismissPending(command.pendingId);
+        return;
+      case "automation.setEnabled": {
+        const current = this.dependencies.settings.get();
+        if (command.enabled && !current.automation.riskAcknowledged) {
+          throw new Error("Acknowledge the automation risk before enabling a feature.");
+        }
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.automation[command.feature] = command.enabled;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
+        return;
+      }
+      case "profile.save": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          const index = draft.profiles.findIndex((profile) => profile.id === command.profile.id);
+          if (index >= 0) draft.profiles[index] = command.profile;
+          else draft.profiles.push(command.profile);
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.profiles = settings.profiles; });
+        return;
+      }
+      case "profile.delete": {
+        if (command.profileId === "default") throw new Error("The default profile cannot be deleted.");
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.profiles = draft.profiles.filter((profile) => profile.id !== command.profileId);
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.profiles = settings.profiles; });
+        return;
+      }
+      case "collection.refresh":
+        await this.dependencies.collection.refresh();
+        return;
+      case "insights.refreshRunes":
+        await this.dependencies.insights.refreshRunes();
+        return;
+      case "insights.refreshPerformance":
+        await this.dependencies.insights.refreshPerformance();
+        return;
+      case "runes.applyRecommendation":
+        await this.dependencies.insights.applyRecommendation(command.recommendationId);
+        return;
+      case "collection.toggleFavorite": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          const favorites = new Set(draft.favorites);
+          if (favorites.has(command.skinId)) favorites.delete(command.skinId);
+          else favorites.add(command.skinId);
+          draft.favorites = [...favorites];
+        });
+        this.dependencies.store.update((snapshot) => {
+          snapshot.collection.champions.forEach((champion) => {
+            champion.skins.forEach((skin) => {
+              if (skin.id === command.skinId) skin.favorite = settings.favorites.includes(skin.id);
+            });
+          });
+          snapshot.collection.progress.favoriteSkins = snapshot.collection.champions
+            .flatMap((champion) => champion.skins)
+            .filter((skin) => skin.favorite).length;
+        });
+        return;
+      }
+      case "collection.toggleWishlist": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          const wishlist = new Set(draft.wishlist);
+          if (wishlist.has(command.skinId)) wishlist.delete(command.skinId);
+          else wishlist.add(command.skinId);
+          draft.wishlist = [...wishlist];
+        });
+        this.dependencies.store.update((snapshot) => {
+          for (const skin of snapshot.collection.champions.flatMap((champion) => champion.skins)) {
+            if (skin.id === command.skinId) skin.wishlisted = settings.wishlist.includes(skin.id);
+          }
+          snapshot.collection.progress.wishlistSkins = snapshot.collection.champions
+            .flatMap((champion) => champion.skins)
+            .filter((skin) => skin.wishlisted).length;
+        });
+        return;
+      }
+      case "integration.configure":
+        await this.dependencies.integrations.configure(command.integrationId, command.executablePath);
+        return;
+      case "integration.chooseExecutable": {
+        const selected = await this.dependencies.chooseExecutable(command.integrationId);
+        if (selected) await this.dependencies.integrations.configure(command.integrationId, selected);
+        return;
+      }
+      case "integration.launch":
+        await this.dependencies.integrations.launch(command.integrationId);
+        return;
+      case "integration.stop":
+        await this.dependencies.integrations.stop(command.integrationId);
+        return;
+      case "clientTab.install":
+        await this.dependencies.pengu.install();
+        return;
+      case "clientTab.repair":
+        await this.dependencies.pengu.install();
+        return;
+      case "clientTab.uninstall":
+        await this.dependencies.pengu.uninstall();
+        return;
+      case "doctor.refresh":
+        await this.dependencies.pengu.refresh();
+        return;
+      case "aram.toggleFavoriteChampion":
+        await this.dependencies.aram.toggleFavorite(command.championId);
+        return;
+      case "remote.revoke":
+        await this.dependencies.remote.revoke(command.deviceId);
+        return;
+      case "readyCheck.accept":
+      case "readyCheck.decline":
+      case "queue.start":
+      case "queue.stop":
+      case "champSelect.hover":
+      case "champSelect.lock":
+      case "champSelect.setSpells":
+      case "champSelect.setRunePage":
+      case "champSelect.selectOwnedSkin":
+        await this.dependencies.leagueSession.executeManual(command);
+        return;
+      case "aram.benchSwap":
+        await this.dependencies.aram.swap(command.championId);
+        return;
+    }
+  }
+
+  private successMessage(command: CompanionCommand): string {
+    if (command.type === "desktop.open") return "Desktop app opened.";
+    if (command.type === "collection.refresh") return "Collection synchronized.";
+    if (command.type === "insights.refreshRunes") return "Rune recommendations refreshed.";
+    if (command.type === "insights.refreshPerformance") return "Champion performance refreshed.";
+    if (command.type === "runes.applyRecommendation") return "Recommended runes applied to a Rose Enhanced page.";
+    if (command.type === "collection.toggleFavorite") return "Favorite updated.";
+    if (command.type === "collection.toggleWishlist") return "Wishlist updated.";
+    if (command.type === "profile.save") return "Automation profile saved.";
+    if (command.type === "profile.delete") return "Automation profile deleted.";
+    if (command.type === "automation.acknowledgeRisk") return "Risk acknowledgement saved locally.";
+    if (command.type === "automation.setEnabled") return `${command.feature} ${command.enabled ? "enabled" : "disabled"}.`;
+    if (command.type === "automation.setMode") return `Automation mode changed to ${command.mode}.`;
+    if (command.type === "automation.confirm") return "Automation action confirmed.";
+    if (command.type === "automation.dismiss") return "Automation action dismissed.";
+    if (command.type === "clientTab.install") return "Client integration installed. Restart the League client to load it.";
+    if (command.type === "clientTab.repair") return "Client integration repaired. Restart League to activate it.";
+    if (command.type === "clientTab.uninstall") return "Client integration removed. Restart the League client to unload it.";
+    if (command.type === "doctor.refresh") return "Connection checks refreshed.";
+    if (command.type === "aram.toggleFavoriteChampion") return "ARAM favorite updated.";
+    if (command.type === "remote.revoke") return "Mobile device revoked.";
+    if (command.type.startsWith("integration.")) return "Integration updated.";
+    return "Command completed.";
+  }
+}

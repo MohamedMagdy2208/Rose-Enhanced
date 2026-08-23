@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rose Enhanced Pengu integration harness</title>
+  </head>
+  <body>
+    <nav class="right-nav-menu" aria-label="League navigation"></nav>
+    <pre id="results" aria-live="polite">Running…</pre>
+
+    <script>
+      const hasRose = new URLSearchParams(window.location.search).get("rose") !== "0";
+      const navigation = document.querySelector(".right-nav-menu");
+      let roseNavigation = null;
+
+      if (hasRose) {
+        roseNavigation = document.createElement("lol-uikit-navigation-item");
+        roseNavigation.className = "main-navigation-menu-item menu_item_Golden Rose";
+        roseNavigation.innerHTML = '<button class="menu-item-icon">RE</button>';
+        navigation.appendChild(roseNavigation);
+
+        window.addEventListener("rose-open-settings", () => {
+          const existing = document.getElementById("rose-settings-panel");
+          if (existing) {
+            existing.remove();
+            return;
+          }
+
+          const panel = document.createElement("section");
+          panel.id = "rose-settings-panel";
+          panel.innerHTML = `
+            <lc-flyout-content>
+              <div>
+                <button id="save-button">Save</button>
+                <button id="pengu-ui-button">Open Pengu Loader UI</button>
+              </div>
+            </lc-flyout-content>
+          `;
+          document.body.appendChild(panel);
+        });
+      }
+    </script>
+    <script src="../../pengu/index.template.js"></script>
+    <script>
+      window.setTimeout(() => {
+        const checks = {};
+
+        if (hasRose) {
+          window.dispatchEvent(
+            new CustomEvent("rose-open-settings", {
+              detail: { navItem: roseNavigation },
+            }),
+          );
+
+          window.setTimeout(() => {
+            const entry = document.getElementById("rose-enhanced-settings-entry");
+            checks.entryInjected = Boolean(entry);
+            checks.noDuplicateNavigation = !document.getElementById(
+              "rose-enhanced-navigation-item",
+            );
+            entry?.click();
+            checks.overlayOpened = Boolean(
+              document.getElementById("rose-enhanced-client-overlay"),
+            );
+            document.querySelector(".rose-enhanced-close")?.click();
+
+            window.setTimeout(() => {
+              checks.rosePanelRestored = Boolean(
+                document.getElementById("rose-settings-panel"),
+              );
+              checks.entryRestored = Boolean(
+                document.getElementById("rose-enhanced-settings-entry"),
+              );
+              finish(checks);
+            }, 50);
+          }, 50);
+        } else {
+          window.setTimeout(() => {
+            const fallback = document.getElementById(
+              "rose-enhanced-navigation-item",
+            );
+            checks.fallbackInjected = fallback?.textContent === "RE+";
+            fallback?.click();
+            checks.overlayOpened = Boolean(
+              document.getElementById("rose-enhanced-client-overlay"),
+            );
+            document.querySelector(".rose-enhanced-close")?.click();
+            checks.overlayClosed = !document.getElementById(
+              "rose-enhanced-client-overlay",
+            );
+            checks.focusRestored = document.activeElement === fallback;
+            finish(checks);
+          }, 4_100);
+        }
+      }, 0);
+
+      function finish(checks) {
+        const passed = Object.values(checks).every(Boolean);
+        document.getElementById("results").textContent = JSON.stringify({
+          scenario: hasRose ? "rose-present" : "rose-absent",
+          passed,
+          checks,
+        });
+        document.body.dataset.testComplete = String(passed);
+      }
+    </script>
+  </body>
+</html>
