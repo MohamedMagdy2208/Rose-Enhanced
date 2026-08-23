@@ -160,10 +160,11 @@ lobbies, invite players, or expose a general LCU request interface.
 ## Optional Pengu Loader build
 
 The client surface uses the MIT-licensed Pengu Loader. When Rose is installed,
-Rose Enhanced adds an entry inside Rose's existing `RE` panel instead of
-creating a duplicate top-level item. If Rose is unavailable, it exposes a
-clearly labeled `RE+` fallback item. The dependency is pinned but not committed
-into this repository:
+Rose Enhanced adds an entry inside Rose's existing `RE` panel and a separate
+branded icon in League's top navigation. Both open the same secured client
+surface and reuse the same desktop process; no second loader or backend is
+started. The dedicated navigation icon remains available when Rose is absent.
+The dependency is pinned but not committed into this repository:
 
 ```powershell
 npm run vendor:pengu

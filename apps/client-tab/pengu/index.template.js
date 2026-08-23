@@ -10,13 +10,15 @@
   const config = Object.freeze({
     port: Number("__ROSE_ENHANCED_PORT__"),
     token: "__ROSE_ENHANCED_TOKEN__",
+    navigationIcon: "__ROSE_ENHANCED_NAV_ICON__",
     pluginVersion,
     protocolVersion,
   });
   const bridgeOrigin = `http://127.0.0.1:${config.port}`;
   const bridgeAuthMessageType = "rose-enhanced.auth";
   const ids = Object.freeze({
-    fallbackNavigation: "rose-enhanced-navigation-item",
+    navigation: "rose-enhanced-navigation-item",
+    navigationSeparator: "rose-enhanced-navigation-separator",
     overlay: "rose-enhanced-client-overlay",
     roseEntry: "rose-enhanced-settings-entry",
     styles: "rose-enhanced-styles",
@@ -24,7 +26,6 @@
   const rosePanelId = "rose-settings-panel";
   const roseNavigationSelector =
     "lol-uikit-navigation-item.menu_item_Golden.Rose";
-  const fallbackDelayMs = 4_000;
   const roseEntryMarkup = `
     <span class="rose-enhanced-settings-entry__mark" aria-hidden="true">RE+</span>
     <span class="rose-enhanced-settings-entry__copy">
@@ -46,7 +47,7 @@
     #${ids.overlay} .rose-enhanced-close:focus-visible,
     #${ids.overlay} .rose-enhanced-retry:focus-visible,
     #${ids.roseEntry}:focus-visible,
-    #${ids.fallbackNavigation}:focus-visible { outline: 2px solid #cdfafa; outline-offset: 2px; }
+    #${ids.navigation}:focus-visible { outline: 2px solid #cdfafa; outline-offset: -3px; }
     #${ids.roseEntry} { box-sizing: border-box; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px; color: #f0e6d2; text-align: left; background: #1e2328; border: 1px solid #785a28; cursor: pointer; }
     #${ids.roseEntry}:hover { border-color: #c89b3c; background: #242a30; }
     #${ids.roseEntry} .rose-enhanced-settings-entry__mark { display: grid; place-items: center; width: 38px; height: 32px; color: #f06a7f; border-right: 1px solid #463714; font: 700 13px/1 Georgia, serif; }
@@ -54,8 +55,15 @@
     #${ids.roseEntry} strong { font: 700 14px/1.1 "Beaufort for LOL", Georgia, serif; }
     #${ids.roseEntry} small { color: #a09b8c; font: 12px/1.2 Arial, sans-serif; }
     #${ids.roseEntry} .rose-enhanced-settings-entry__arrow { color: #c8aa6e; font: 24px/1 Arial, sans-serif; }
-    #${ids.fallbackNavigation} { display: grid; place-items: center; min-width: 48px; height: 42px; color: #f06a7f; background: transparent; border: 0; font: 700 13px/1 Georgia, serif; cursor: pointer; }
-    #${ids.fallbackNavigation}:hover { color: #f4efe8; }
+    #${ids.navigation} { position: relative; display: grid; place-items: center; min-width: 64px; height: 78px; cursor: pointer; }
+    #${ids.navigation} .rose-enhanced-navigation__wrapper { position: relative; display: grid; place-items: center; width: 100%; height: 100%; }
+    #${ids.navigation} .rose-enhanced-navigation__glow { position: absolute; inset: 8px 7px; opacity: 0; background: radial-gradient(circle, rgb(240 106 127 / 28%) 0, transparent 68%); transition: opacity 140ms ease; }
+    #${ids.navigation} .rose-enhanced-navigation__icon { width: 38px; height: 38px; background-color: transparent !important; background-position: center; background-repeat: no-repeat; background-size: contain; filter: saturate(.9) brightness(.92); transition: filter 140ms ease, transform 140ms ease; }
+    #${ids.navigation}:hover .rose-enhanced-navigation__glow,
+    #${ids.navigation}[aria-expanded="true"] .rose-enhanced-navigation__glow { opacity: 1; }
+    #${ids.navigation}:hover .rose-enhanced-navigation__icon,
+    #${ids.navigation}[aria-expanded="true"] .rose-enhanced-navigation__icon { filter: saturate(1.08) brightness(1.1); transform: translateY(-1px); }
+    #${ids.navigation}[aria-expanded="true"]::after { position: absolute; right: 9px; bottom: 0; left: 9px; height: 2px; content: ""; background: #c89b3c; box-shadow: 0 0 8px rgb(200 155 60 / 70%); }
     #${ids.overlay} .rose-enhanced-connection { box-sizing: border-box; display: grid; place-items: center; width: 100%; height: 100%; padding: 32px; background: radial-gradient(circle at 50% 28%, #14202a 0, #090b0f 48%); }
     #${ids.overlay} .rose-enhanced-connection-card { width: min(520px, 100%); padding: 28px; text-align: center; border: 1px solid #463714; background: #010a13; box-shadow: 0 18px 48px rgb(0 0 0 / 45%); }
     #${ids.overlay} .rose-enhanced-connection-mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; color: #f06a7f; border: 1px solid #785a28; font: 700 15px/1 Georgia, serif; }
@@ -68,7 +76,7 @@
       #${ids.roseEntry} small { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
-      #${ids.overlay} *, #${ids.roseEntry} { scroll-behavior: auto !important; transition: none !important; }
+      #${ids.overlay} *, #${ids.roseEntry}, #${ids.navigation} * { scroll-behavior: auto !important; transition: none !important; }
     }
   `;
   let lastFocusedElement = null;
@@ -105,8 +113,15 @@
     if (lastFocusedElement?.isConnected) lastFocusedElement.focus();
   };
 
+  const setNavigationActive = (active) => {
+    document
+      .getElementById(ids.navigation)
+      ?.setAttribute("aria-expanded", String(active));
+  };
+
   const removeOverlay = () => {
     document.getElementById(ids.overlay)?.remove();
+    setNavigationActive(false);
   };
 
   const closeOverlay = (afterClose) => {
@@ -245,6 +260,7 @@
 
   const mountOverlay = (closeLabel, afterClose) => {
     removeOverlay();
+    setNavigationActive(true);
     const closeAction = () => closeOverlay(afterClose);
     const overlay = createOverlay(closeAction);
     const { toolbar, closeButton } = createToolbar(closeLabel, closeAction);
@@ -300,38 +316,96 @@
     return button.isConnected;
   }
 
-  const removeFallbackNavigation = () => {
-    document.getElementById(ids.fallbackNavigation)?.remove();
+  const configureNavigationItem = (navigationItem) => {
+    navigationItem.id = ids.navigation;
+    navigationItem.className =
+      "main-navigation-menu-item menu_item_RoseEnhanced ember-view";
+    navigationItem.title = "Rose Enhanced";
+    navigationItem.tabIndex = 0;
+    navigationItem.setAttribute("role", "button");
+    navigationItem.setAttribute("aria-label", "Open Rose Enhanced");
+    navigationItem.setAttribute("aria-haspopup", "dialog");
+    navigationItem.setAttribute("aria-expanded", "false");
   };
 
-  const createFallbackButton = () => {
-    const button = document.createElement("button");
-    button.id = ids.fallbackNavigation;
-    button.type = "button";
-    button.title = "Rose Enhanced";
-    button.setAttribute("aria-label", "Open Rose Enhanced");
-    button.textContent = "RE+";
-    button.addEventListener(
+  const createNavigationArtwork = () => {
+    const iconWrapper = document.createElement("div");
+    iconWrapper.className =
+      "menu-item-icon-wrapper rose-enhanced-navigation__wrapper";
+    const iconGlow = document.createElement("div");
+    iconGlow.className = "menu-item-glow rose-enhanced-navigation__glow";
+    const iconArtwork = document.createElement("div");
+    iconArtwork.className = "menu-item-icon rose-enhanced-navigation__icon";
+    iconArtwork.setAttribute("aria-hidden", "true");
+    iconArtwork.style.backgroundImage = `url("${config.navigationIcon}")`;
+    iconArtwork.style.webkitMaskImage = "none";
+    iconWrapper.append(iconGlow, iconArtwork);
+    return iconWrapper;
+  };
+
+  const openFromNavigation = (navigationItem, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openStandaloneOverlay(navigationItem);
+  };
+
+  const createNavigationItem = () => {
+    const navigationItem = document.createElement("lol-uikit-navigation-item");
+    configureNavigationItem(navigationItem);
+    navigationItem.appendChild(createNavigationArtwork());
+    navigationItem.addEventListener(
       "click",
-      (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openStandaloneOverlay(button);
-      },
+      (event) => openFromNavigation(navigationItem, event),
       true,
     );
-    return button;
+    navigationItem.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      openFromNavigation(navigationItem, event);
+    });
+    return navigationItem;
   };
 
-  const installFallbackNavigation = () => {
-    if (findRoseNavigation()) {
-      removeFallbackNavigation();
-      return false;
+  const createNavigationSeparator = () => {
+    const separator = document.createElement("div");
+    separator.id = ids.navigationSeparator;
+    separator.className = "right-nav-vertical-rule";
+    separator.setAttribute("aria-hidden", "true");
+    return separator;
+  };
+
+  const navigationPredecessor = (navigationContainer) => {
+    const roseNavigationItem = findRoseNavigation();
+    if (roseNavigationItem?.parentElement !== navigationContainer) return null;
+    const roseSeparator =
+      roseNavigationItem.nextElementSibling?.classList.contains(
+        "right-nav-vertical-rule",
+      )
+        ? roseNavigationItem.nextElementSibling
+        : null;
+    return roseSeparator ?? roseNavigationItem;
+  };
+
+  const placeNavigation = (navigationContainer, navigationItem, navigationSeparator) => {
+    const predecessor = navigationPredecessor(navigationContainer);
+    const desiredPosition = predecessor
+      ? predecessor.nextSibling
+      : navigationContainer.firstChild;
+    if (navigationItem.parentElement !== navigationContainer || desiredPosition !== navigationItem) {
+      navigationContainer.insertBefore(navigationItem, desiredPosition);
     }
-    if (document.getElementById(ids.fallbackNavigation)) return true;
-    const navigation = document.querySelector(".right-nav-menu, .main-nav-bar");
-    if (!navigation) return false;
-    navigation.prepend(createFallbackButton());
+    if (navigationSeparator.parentElement !== navigationContainer || navigationItem.nextSibling !== navigationSeparator) {
+      navigationContainer.insertBefore(navigationSeparator, navigationItem.nextSibling);
+    }
+  };
+
+  const installNavigation = () => {
+    const navigationContainer = document.querySelector(".right-nav-menu, .main-nav-bar");
+    if (!navigationContainer) return false;
+    const navigationItem =
+      document.getElementById(ids.navigation) ?? createNavigationItem();
+    const navigationSeparator =
+      document.getElementById(ids.navigationSeparator) ?? createNavigationSeparator();
+    placeNavigation(navigationContainer, navigationItem, navigationSeparator);
     return true;
   };
 
@@ -345,8 +419,7 @@
 
   const synchronizeIntegration = () => {
     installStyles();
-    if (!findRoseNavigation()) return;
-    removeFallbackNavigation();
+    installNavigation();
     installRoseEntry();
   };
 
@@ -357,10 +430,6 @@
     window.addEventListener("rose-open-settings", () => {
       window.setTimeout(installRoseEntry, 0);
     });
-    window.setTimeout(() => {
-      synchronizeIntegration();
-      installFallbackNavigation();
-    }, fallbackDelayMs);
   };
 
   if (document.body) start();

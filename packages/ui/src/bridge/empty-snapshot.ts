@@ -85,7 +85,7 @@ export const emptySnapshot: CompanionSnapshot = {
   ],
   clientTab: {
     installed: false,
-    expectedPluginVersion: "0.6.0",
+    expectedPluginVersion: "0.7.0",
     installedPluginVersion: null,
     installedProtocolVersion: null,
     activePluginVersion: null,

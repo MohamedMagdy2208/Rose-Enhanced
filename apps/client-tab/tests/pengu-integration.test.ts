@@ -15,9 +15,9 @@ async function loadBootstrap(window: Window, bridgeAvailable = true): Promise<vo
   const executableSource = template
     .replaceAll("__ROSE_ENHANCED_TOKEN__", testBridgeToken)
     .replaceAll("__ROSE_ENHANCED_PORT__", "17654")
-    .replaceAll("__ROSE_ENHANCED_PLUGIN_VERSION__", "0.6.0")
-    .replaceAll("__ROSE_ENHANCED_PROTOCOL_VERSION__", "4")
-    .replace("const fallbackDelayMs = 4_000;", "const fallbackDelayMs = 0;");
+    .replaceAll("__ROSE_ENHANCED_NAV_ICON__", "data:image/png;base64,dGVzdA==")
+    .replaceAll("__ROSE_ENHANCED_PLUGIN_VERSION__", "0.7.0")
+    .replaceAll("__ROSE_ENHANCED_PROTOCOL_VERSION__", "4");
   window.eval(executableSource);
   await new Promise((resolve) => setTimeout(resolve, 10));
 }
@@ -54,7 +54,7 @@ afterEach(async () => {
 });
 
 describe("Pengu client-surface integration", () => {
-  it("opens from Rose's existing panel without a duplicate navigation item", async () => {
+  it("keeps Rose's settings entry and a separate League navigation icon", async () => {
     const window = createWindow();
     window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
     const roseNavigation = installRoseSettingsFixture(window);
@@ -67,9 +67,18 @@ describe("Pengu client-surface integration", () => {
     );
     await new Promise((resolve) => setTimeout(resolve, 10));
     const entry = window.document.getElementById("rose-enhanced-settings-entry");
+    const navigation = window.document.getElementById(
+      "rose-enhanced-navigation-item",
+    );
 
     expect(entry?.textContent).toContain("Rose Enhanced");
-    expect(window.document.getElementById("rose-enhanced-navigation-item")).toBeNull();
+    expect(roseNavigation.nextElementSibling).toBe(navigation);
+    expect(navigation?.getAttribute("role")).toBe("button");
+    expect(navigation?.getAttribute("aria-label")).toBe("Open Rose Enhanced");
+    expect(
+      navigation?.querySelector<HTMLElement>(".rose-enhanced-navigation__icon")
+        ?.style.backgroundImage,
+    ).toContain("data:image/png;base64,dGVzdA==");
     entry?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
     const overlay = window.document.getElementById("rose-enhanced-client-overlay");
@@ -90,7 +99,7 @@ describe("Pengu client-surface integration", () => {
       {
         type: "rose-enhanced.auth",
         token: testBridgeToken,
-        pluginVersion: "0.6.0",
+        pluginVersion: "0.7.0",
         protocolVersion: 4,
       },
       "http://127.0.0.1:17654",
@@ -100,18 +109,35 @@ describe("Pengu client-surface integration", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(window.document.getElementById("rose-settings-panel")).not.toBeNull();
     expect(window.document.activeElement?.id).toBe("rose-enhanced-settings-entry");
+
+    navigation?.click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(navigation?.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      window.document
+        .getElementById("rose-enhanced-client-overlay")
+        ?.querySelector(".rose-enhanced-close")?.textContent,
+    ).toBe("Close Rose Enhanced");
+    window.document
+      .querySelector<HTMLButtonElement>(".rose-enhanced-close")
+      ?.click();
+    expect(navigation?.getAttribute("aria-expanded")).toBe("false");
+    expect(window.document.activeElement).toBe(navigation);
   });
 
-  it("provides an accessible RE+ fallback when Rose is absent", async () => {
+  it("opens the navigation icon from the keyboard when Rose is absent", async () => {
     const window = createWindow();
     window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
     await loadBootstrap(window);
-    const fallback = window.document.querySelector<HTMLButtonElement>(
+    const navigation = window.document.querySelector<HTMLElement>(
       "#rose-enhanced-navigation-item",
     );
 
-    expect(fallback?.textContent).toBe("RE+");
-    fallback?.click();
+    expect(navigation?.getAttribute("role")).toBe("button");
+    expect(navigation?.getAttribute("aria-haspopup")).toBe("dialog");
+    navigation?.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 10));
     const overlay = window.document.getElementById("rose-enhanced-client-overlay");
     expect(overlay?.getAttribute("role")).toBe("dialog");
@@ -121,7 +147,7 @@ describe("Pengu client-surface integration", () => {
 
     overlay?.querySelector<HTMLButtonElement>(".rose-enhanced-close")?.click();
     expect(window.document.getElementById("rose-enhanced-client-overlay")).toBeNull();
-    expect(window.document.activeElement).toBe(fallback);
+    expect(window.document.activeElement).toBe(navigation);
   });
 
   // Regression: the 2026-08-23 stopped-host incident rendered Chromium's raw error page.

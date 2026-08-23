@@ -56,9 +56,11 @@ export class PenguManager {
     const destination = path.join(pluginRoot, this.pluginName);
     await mkdir(destination, { recursive: true });
     const template = await readFile(templatePath, "utf8");
+    const navigationIcon = await readFile(this.navigationIconPath());
     const generated = template
       .replaceAll("__ROSE_ENHANCED_TOKEN__", this.settings.get().bridgeToken)
       .replaceAll("__ROSE_ENHANCED_PORT__", process.env.ROSE_ENHANCED_BRIDGE_PORT ?? "17654")
+      .replaceAll("__ROSE_ENHANCED_NAV_ICON__", `data:image/png;base64,${navigationIcon.toString("base64")}`)
       .replaceAll("__ROSE_ENHANCED_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
       .replaceAll("__ROSE_ENHANCED_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
     await writeFile(path.join(destination, "index.js"), generated, { encoding: "utf8", mode: 0o600 });
@@ -126,6 +128,11 @@ export class PenguManager {
   private templatePath(): string {
     if (app.isPackaged) return path.join(process.resourcesPath, "pengu", "index.template.js");
     return path.resolve(app.getAppPath(), "../client-tab/pengu/index.template.js");
+  }
+
+  private navigationIconPath(): string {
+    if (app.isPackaged) return path.join(process.resourcesPath, "assets", "tray-icon.png");
+    return path.resolve(app.getAppPath(), "assets", "tray-icon.png");
   }
 
   private async readInstalledMetadata(pluginPath: string): Promise<{ pluginVersion: string | null; protocolVersion: number | null }> {

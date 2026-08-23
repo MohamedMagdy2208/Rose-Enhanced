@@ -56,9 +56,9 @@
           window.setTimeout(() => {
             const entry = document.getElementById("rose-enhanced-settings-entry");
             checks.entryInjected = Boolean(entry);
-            checks.noDuplicateNavigation = !document.getElementById(
+            checks.dedicatedNavigation = Boolean(document.getElementById(
               "rose-enhanced-navigation-item",
-            );
+            ));
             entry?.click();
             checks.overlayOpened = Boolean(
               document.getElementById("rose-enhanced-client-overlay"),
@@ -77,11 +77,13 @@
           }, 50);
         } else {
           window.setTimeout(() => {
-            const fallback = document.getElementById(
+            const enhancedNavigation = document.getElementById(
               "rose-enhanced-navigation-item",
             );
-            checks.fallbackInjected = fallback?.textContent === "RE+";
-            fallback?.click();
+            checks.navigationInjected =
+              enhancedNavigation?.getAttribute("aria-label") ===
+              "Open Rose Enhanced";
+            enhancedNavigation?.click();
             checks.overlayOpened = Boolean(
               document.getElementById("rose-enhanced-client-overlay"),
             );
@@ -89,9 +91,9 @@
             checks.overlayClosed = !document.getElementById(
               "rose-enhanced-client-overlay",
             );
-            checks.focusRestored = document.activeElement === fallback;
+            checks.focusRestored = document.activeElement === enhancedNavigation;
             finish(checks);
-          }, 4_100);
+          }, 50);
         }
       }, 0);
 

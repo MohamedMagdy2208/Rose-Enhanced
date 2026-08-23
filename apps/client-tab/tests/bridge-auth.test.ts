@@ -19,7 +19,7 @@ describe("client-tab bridge authorization", () => {
           type: BRIDGE_AUTH_MESSAGE_TYPE,
           token: "unrelated-token-with-at-least-thirty-two-characters",
           protocolVersion: 4,
-          pluginVersion: "0.6.0",
+          pluginVersion: "0.7.0",
         },
         source: unrelatedWindow,
       }),
@@ -30,7 +30,7 @@ describe("client-tab bridge authorization", () => {
           type: BRIDGE_AUTH_MESSAGE_TYPE,
           token: expectedToken,
           protocolVersion: 4,
-          pluginVersion: "0.6.0",
+          pluginVersion: "0.7.0",
         },
         source: browserWindow.parent,
       }),
@@ -39,7 +39,7 @@ describe("client-tab bridge authorization", () => {
     await expect(authorizationPromise).resolves.toEqual({
       token: expectedToken,
       protocolVersion: 4,
-      pluginVersion: "0.6.0",
+      pluginVersion: "0.7.0",
     });
     expect(browserWindow.location.search).toBe("");
     await Promise.all([browserWindow.happyDOM.close(), unrelatedWindow.happyDOM.close()]);

@@ -5,7 +5,7 @@ import { StatusPill } from "../components/StatusPill";
 const descriptions: Record<IntegrationState["id"], string> = {
   rose: "Open the separately installed Rose skin tool. Rose Enhanced never bundles its injector or skin files.",
   deceive: "Launch the separately installed Deceive application for its independent presence controls.",
-  pengu: "Add Rose Enhanced inside Rose's existing RE panel. Without Rose, the same plugin provides a separate RE+ fallback.",
+  pengu: "Add Rose Enhanced inside Rose's existing RE panel and as a separate branded League navigation icon. Both access points reuse the same secured client surface.",
 };
 
 export function IntegrationsPage({
