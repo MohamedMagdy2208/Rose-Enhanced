@@ -14,11 +14,13 @@
     "npm": ">=11.0.0"
   },
   "scripts": {
+    "prestart": "npm run build --workspace @rose-enhanced/remote",
     "start": "npm run start --workspace @rose-enhanced/desktop",
     "build": "npm run build --workspace @rose-enhanced/contracts && npm run build --workspace @rose-enhanced/core && npm run build --workspace @rose-enhanced/remote && npm run build --workspace @rose-enhanced/ui && npm run build --workspace @rose-enhanced/client-tab && npm run build --workspace @rose-enhanced/mobile && npm run build --workspace @rose-enhanced/relay && npm run build --workspace @rose-enhanced/desktop",
-    "package": "npm run build --workspace @rose-enhanced/client-tab && npm run package --workspace @rose-enhanced/desktop",
-    "make": "npm run build --workspace @rose-enhanced/client-tab && npm run make --workspace @rose-enhanced/desktop",
+    "package": "npm run build --workspace @rose-enhanced/remote && npm run build --workspace @rose-enhanced/client-tab && npm run package --workspace @rose-enhanced/desktop",
+    "make": "npm run build --workspace @rose-enhanced/remote && npm run build --workspace @rose-enhanced/client-tab && npm run make --workspace @rose-enhanced/desktop",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "pretest": "npm run build --workspace @rose-enhanced/remote",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "vendor:pengu": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-pengu.ps1",
