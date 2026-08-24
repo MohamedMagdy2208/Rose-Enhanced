@@ -12,6 +12,6 @@
     { "tag": "v1", "new_sqlite_classes": ["PairingRoom"] }
   ],
   "vars": {
-    "MOBILE_ORIGIN": "https://remote.example.invalid"
+    "MOBILE_ORIGIN": "https://mohamedmagdy2208.github.io"
   }
 }

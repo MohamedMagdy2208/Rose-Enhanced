@@ -1,0 +1,48 @@
+name: Deploy mobile PWA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/contracts/**"
+      - "packages/remote/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mobile-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mobile-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/configure-pages@v6
+      - run: npm ci
+      - name: Build mobile PWA
+        env:
+          SUMMONERKIT_MOBILE_BASE: /SummonerKit/
+        run: npm run build --workspace @summonerkit/mobile
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/mobile/dist
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

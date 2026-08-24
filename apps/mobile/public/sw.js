@@ -1,7 +1,8 @@
 const CACHE = "summonerkit-mobile-v3";
+const APP_SHELL = new URL("./", self.registration.scope).href;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["/"])));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll([APP_SHELL])));
   self.skipWaiting();
 });
 
@@ -22,7 +23,7 @@ self.addEventListener("fetch", (event) => {
       if (response.ok) event.waitUntil(caches.open(CACHE).then((cache) => cache.put(event.request, response.clone())));
       return response;
     }).catch(async () => (await caches.match(event.request))
-      ?? (await caches.match("/"))
+      ?? (await caches.match(APP_SHELL))
       ?? new Response("SummonerKit Remote is offline.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } })));
     return;
   }
