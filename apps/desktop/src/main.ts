@@ -1,6 +1,8 @@
+import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import {
   app,
+  autoUpdater,
   BrowserWindow,
   dialog,
   Menu,
@@ -8,6 +10,7 @@ import {
   shell,
   Tray,
 } from "electron";
+import { PRODUCT_NAME, PRODUCT_REPOSITORY } from "@summonerkit/contracts";
 import squirrelStartup from "electron-squirrel-startup";
 import { registerIpc } from "./ipc";
 import { allowedExternalUrl } from "./electron-security";
@@ -26,8 +29,10 @@ import { AppLogger } from "./services/logger";
 import { PenguManager } from "./services/pengu-manager";
 import { RemoteService } from "./services/remote-service";
 import { SettingsStore } from "./services/settings-store";
+import { UpdateService } from "./services/update-service";
 
 if (squirrelStartup) app.quit();
+app.setName(PRODUCT_NAME);
 
 const singleInstance = app.requestSingleInstanceLock();
 if (!singleInstance) app.quit();
@@ -40,6 +45,7 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 async function bootstrap(): Promise<void> {
+  await migrateLegacyUserData();
   const logger = new AppLogger();
   const settings = new SettingsStore(logger);
   const persisted = await settings.load();
@@ -56,6 +62,11 @@ async function bootstrap(): Promise<void> {
   const integrations = new IntegrationService(store, settings, logger);
   const pengu = new PenguManager(store, settings, logger);
   const clientTabActivation = new ClientTabActivationService(lcu, store, logger);
+  const updates = new UpdateService(autoUpdater, {
+    currentVersion: app.getVersion(),
+    feedUrl: `https://update.electronjs.org/${PRODUCT_REPOSITORY}/${process.platform}-${process.arch}/${app.getVersion()}`,
+    installedWithSquirrel: await squirrelInstallationAvailable(),
+  });
 
   if (installClientSurface || rotateClientToken) {
     if (rotateClientToken) await settings.rotateBridgeToken();
@@ -111,7 +122,7 @@ async function bootstrap(): Promise<void> {
     },
     logger,
   });
-  const unregisterIpc = registerIpc({ window: mainWindow, store, router, remote, logger });
+  const unregisterIpc = registerIpc({ window: mainWindow, store, router, remote, updates, logger });
 
   lcu.on("state", (state) => store.update((snapshot) => { snapshot.connection = state; }));
   clientTabActivation.start();
@@ -140,6 +151,7 @@ async function bootstrap(): Promise<void> {
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
+    title: PRODUCT_NAME,
     width: 1_280,
     height: 820,
     minWidth: 960,
@@ -158,7 +170,7 @@ function createWindow(): BrowserWindow {
       devTools: !app.isPackaged,
       enableWebSQL: false,
       navigateOnDragDrop: false,
-      partition: "rose-enhanced",
+      partition: "summonerkit",
       safeDialogs: true,
       spellcheck: false,
       webviewTag: false,
@@ -198,13 +210,41 @@ function applicationAssetPath(filename: "icon.ico" | "tray-icon.png"): string {
 
 function createTray(window: BrowserWindow): void {
   tray = new Tray(applicationAssetPath("tray-icon.png"));
-  tray.setToolTip("Rose Enhanced");
+  tray.setToolTip("SummonerKit");
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open Rose Enhanced", click: () => { window.show(); window.focus(); } },
+    { label: "Open SummonerKit", click: () => { window.show(); window.focus(); } },
     { type: "separator" },
     { label: "Quit", click: () => { isQuitting = true; app.quit(); } },
   ]));
   tray.on("double-click", () => { window.show(); window.focus(); });
+}
+
+async function migrateLegacyUserData(): Promise<void> {
+  const legacyRoot = path.join(app.getPath("appData"), "@rose-enhanced", "desktop");
+  const currentRoot = app.getPath("userData");
+  for (const relativePath of ["settings.json", path.join("cache", "collection-v2.json"), path.join("cache", "insights-v1.json")]) {
+    const source = path.join(legacyRoot, relativePath);
+    const destination = path.join(currentRoot, relativePath);
+    if (!(await fileExists(source)) || await fileExists(destination)) continue;
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(source, destination);
+  }
+}
+
+async function squirrelInstallationAvailable(): Promise<boolean> {
+  if (!app.isPackaged || process.platform !== "win32") return false;
+  const updateExecutable = path.resolve(path.dirname(process.execPath), "..", "Update.exe");
+  return fileExists(updateExecutable);
+}
+
+async function fileExists(candidate: string): Promise<boolean> {
+  try {
+    await access(candidate);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 app.on("second-instance", () => {
@@ -213,7 +253,7 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(bootstrap).catch((error) => {
-  void dialog.showErrorBox("Rose Enhanced failed to start", error instanceof Error ? error.message : String(error));
+  void dialog.showErrorBox("SummonerKit failed to start", error instanceof Error ? error.message : String(error));
   app.quit();
 });
 

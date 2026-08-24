@@ -6,7 +6,7 @@ import type {
   RuneRecommendationRole,
   RuneRecommendationsSnapshot,
   RunePerkRecord,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import { z } from "zod";
 import type { CompanionStore } from "./companion-store";
 import { InsightsCache } from "./insights-cache";
@@ -377,7 +377,7 @@ export function aggregatePerformance(
 }
 
 export function runeFeedConfiguration(environment: NodeJS.ProcessEnv): RuneFeedConfiguration | null {
-  const candidate = environment.ROSE_ENHANCED_BUILD_DATA_URL?.trim();
+  const candidate = environment.SUMMONERKIT_BUILD_DATA_URL?.trim();
   if (!candidate) return null;
   const url = new URL(candidate);
   const localDevelopment = url.hostname === "127.0.0.1" || url.hostname === "localhost";
@@ -385,7 +385,7 @@ export function runeFeedConfiguration(environment: NodeJS.ProcessEnv): RuneFeedC
     throw new Error("The rune data feed must use HTTPS, except for local development.");
   }
   if (url.username || url.password || url.hash) throw new Error("The rune data feed URL contains unsupported credentials or fragments.");
-  return { url: url.toString(), token: environment.ROSE_ENHANCED_BUILD_DATA_TOKEN?.trim() || null };
+  return { url: url.toString(), token: environment.SUMMONERKIT_BUILD_DATA_TOKEN?.trim() || null };
 }
 
 async function fetchRuneFeed(configuration: RuneFeedConfiguration): Promise<z.infer<typeof recommendationFeedSchema>> {
@@ -556,7 +556,7 @@ export class InsightsService {
   }
 
   private publishMissingRuneFeed(): void {
-    const message = "Online rune data is not configured. Set ROSE_ENHANCED_BUILD_DATA_URL to an approved versioned feed.";
+    const message = "Online rune data is not configured. Set SUMMONERKIT_BUILD_DATA_URL to an approved versioned feed.";
     this.store.update((snapshot) => {
       const current = snapshot.insights.runes;
       snapshot.insights.runes = current.recommendations.length > 0

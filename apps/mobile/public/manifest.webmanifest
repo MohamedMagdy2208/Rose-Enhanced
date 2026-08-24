@@ -1,7 +1,7 @@
 {
-  "name": "Rose Enhanced Remote",
-  "short_name": "Rose Remote",
-  "description": "Encrypted, allowlisted mobile controls for Rose Enhanced.",
+  "name": "SummonerKit Remote",
+  "short_name": "SummonerKit",
+  "description": "Encrypted, allowlisted mobile controls for SummonerKit.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#100d12",

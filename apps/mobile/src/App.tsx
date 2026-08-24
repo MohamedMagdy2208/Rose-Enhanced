@@ -1,6 +1,6 @@
 import { BellRing, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { CompanionCommand, RemoteCompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { ChampionSelectPanel } from "./components/ChampionSelectPanel";
 import { ConnectionGate } from "./components/ConnectionGate";
 import { QueuePanel } from "./components/QueuePanel";
@@ -16,7 +16,7 @@ export function App() {
   const desktopKeyFingerprint = params.get("key") ?? "";
   const canPair = Boolean(roomId && secret && relay && desktopKeyFingerprint);
   const [stage, setStage] = useState<Stage>(canPair ? "ready" : "unconfigured");
-  const [message, setMessage] = useState("Scan a pairing code from Rose Enhanced on your PC.");
+  const [message, setMessage] = useState("Scan a pairing code from SummonerKit on your PC.");
   const [messageTone, setMessageTone] = useState<"neutral" | "success" | "error">("neutral");
   const [snapshot, setSnapshot] = useState<RemoteCompanionSnapshot | null>(null);
   const [pending, setPending] = useState(false);
@@ -81,8 +81,8 @@ export function App() {
   return (
     <main className="mobile-shell">
       <header className="brand-bar">
-        <div className="brand-mark" aria-hidden="true"><span>RE</span></div>
-        <div><p>ROSE ENHANCED</p><span>Encrypted remote</span></div>
+        <div className="brand-mark" aria-hidden="true"><span>SK</span></div>
+        <div><p>SUMMONERKIT</p><span>Encrypted remote · by Mohamed Magdy</span></div>
         <span className={`connection-pill ${connected ? "is-connected" : ""}`}><span aria-hidden="true" />{connected ? "Connected" : "Offline"}</span>
       </header>
 

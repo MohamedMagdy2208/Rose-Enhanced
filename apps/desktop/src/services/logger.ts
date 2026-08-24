@@ -1,7 +1,7 @@
 import { appendFile, mkdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { app } from "electron";
-import { redactSensitive } from "@rose-enhanced/core";
+import { redactSensitive } from "@summonerkit/core";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 const MAX_LOG_BYTES = 2 * 1024 * 1024;
@@ -15,7 +15,7 @@ export class AppLogger {
   private diskFailureReported = false;
 
   constructor() {
-    this.filePath = path.join(app.getPath("logs"), "rose-enhanced.log");
+    this.filePath = path.join(app.getPath("logs"), "summonerkit.log");
   }
 
   debug(message: string, data?: unknown): void { this.write("debug", message, data); }

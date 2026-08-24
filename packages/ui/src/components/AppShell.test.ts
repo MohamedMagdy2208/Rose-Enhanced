@@ -22,6 +22,7 @@ describe("hybrid surface navigation", () => {
       "integrations",
       "mobile",
       "doctor",
+      "guide",
       "settings",
     ]);
   });

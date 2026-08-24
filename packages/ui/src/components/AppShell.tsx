@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import {
   Activity,
   Bot,
+  BookOpenCheck,
   Boxes,
   ChartNoAxesCombined,
   Dices,
@@ -15,11 +16,11 @@ import {
   Stethoscope,
   X,
 } from "lucide-react";
-import type { ConnectionStatus } from "@rose-enhanced/contracts";
+import type { ConnectionStatus } from "@summonerkit/contracts";
 import { StatusPill } from "./StatusPill";
 
 export type AppSurface = "desktop" | "client" | "mobile";
-export type PageId = "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "settings";
+export type PageId = "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "guide" | "settings";
 
 const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOnly?: boolean }> = [
   { id: "dashboard", label: "Overview", icon: Gauge },
@@ -30,6 +31,7 @@ const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOn
   { id: "integrations", label: "Integrations", icon: PlugZap, desktopOnly: true },
   { id: "mobile", label: "Mobile Control", icon: Smartphone, desktopOnly: true },
   { id: "doctor", label: "Connection Doctor", icon: Stethoscope, desktopOnly: true },
+  { id: "guide", label: "Guide & Updates", icon: BookOpenCheck, desktopOnly: true },
   { id: "settings", label: "Diagnostics", icon: Settings, desktopOnly: true },
 ];
 
@@ -147,14 +149,14 @@ export function navigationForSurface(surface: AppSurface): PageId[] {
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label="Rose Enhanced">
+    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label="SummonerKit by Mohamed Magdy">
       <span className="brand__mark" aria-hidden="true">
-        <span>R</span>
+        <span>SK</span>
       </span>
       {!compact ? (
         <span className="brand__copy">
-          <strong>Rose</strong>
-          <small>Enhanced</small>
+          <strong>SummonerKit</strong>
+          <small>by Mohamed Magdy</small>
         </span>
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import { Check, Play, Square, Unplug } from "lucide-react";
-import type { CompanionCommand, RemoteCompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { queueLabel } from "../mobile-view";
 
 interface QueuePanelProps {
@@ -39,7 +39,7 @@ export function QueuePanel({ snapshot, pending, send }: QueuePanelProps) {
         <div className="queue-action">
           <div>
             <strong>{queue.lobbyAvailable ? "Current lobby is available" : "Open or join a lobby on PC"}</strong>
-            <span>{queue.canStop ? "Matchmaking is running." : "Rose Enhanced starts the existing lobby queue only."}</span>
+            <span>{queue.canStop ? "Matchmaking is running." : "SummonerKit starts the existing lobby queue only."}</span>
           </div>
           {queue.canStop ? (
             <button type="button" disabled={pending} className="button-danger" onClick={() => send({ type: "queue.stop" })}><Square size={18} />Stop queue</button>

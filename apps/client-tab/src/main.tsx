@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { RoseEnhancedApp, emptySnapshot } from "@rose-enhanced/ui";
+import { SummonerKitApp, emptySnapshot } from "@summonerkit/ui";
 import { assertCurrentProtocol, receiveBridgeAuthorization } from "./bridge-auth";
 import { WebSocketBridge } from "./websocket-bridge";
 
@@ -16,17 +16,17 @@ try {
   const initialSnapshot = await bridge.getSnapshot();
   createRoot(container).render(
     <StrictMode>
-      <RoseEnhancedApp bridge={bridge} initialSnapshot={initialSnapshot} surface="client" />
+      <SummonerKitApp bridge={bridge} initialSnapshot={initialSnapshot} surface="client" />
     </StrictMode>,
   );
 } catch (error) {
-  const message = error instanceof Error ? error.message : "The Rose Enhanced bridge could not start.";
+  const message = error instanceof Error ? error.message : "The SummonerKit bridge could not start.";
   createRoot(container).render(
     <main className="client-startup-error" role="alert">
       <p className="eyebrow">Connection doctor</p>
       <h1>Client integration needs attention</h1>
       <p>{message}</p>
-      <p>Open Rose Enhanced on Windows, choose Diagnostics, and run Repair &amp; reload. Active games and champion select are never interrupted.</p>
+      <p>Open SummonerKit on Windows, choose Diagnostics, and run Repair &amp; reload. Active games and champion select are never interrupted.</p>
     </main>,
   );
 }

@@ -7,7 +7,7 @@ import type {
   CompanionSnapshot,
   DiagnosticReport,
   DomainEvent,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 interface PendingRequest {
   resolve: (result: CommandResult) => void;
@@ -116,8 +116,8 @@ export class WebSocketBridge implements CompanionBridge {
   private openSocket(sessionId: string): void {
     const socketUrl = this.baseUrl.replace(/^http/, "ws");
     const socket = new WebSocket(`${socketUrl}/events`, [
-      "rose-enhanced-v1",
-      `rose-enhanced-session.${sessionId}`,
+      "summonerkit-v1",
+      `summonerkit-session.${sessionId}`,
     ]);
     this.socket = socket;
     socket.addEventListener("message", (event) => this.handleMessage(String(event.data)));

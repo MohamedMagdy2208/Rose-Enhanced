@@ -1,5 +1,5 @@
 import { Bot, Check, Eye, ExternalLink, MonitorUp, MousePointerClick, ShieldAlert, X, Zap } from "lucide-react";
-import type { AutomationSettings, CompanionCommand, CompanionSnapshot } from "@rose-enhanced/contracts";
+import type { AutomationSettings, CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import type { AppSurface } from "../components/AppShell";
 import { ProfileEditor } from "../components/ProfileEditor";
 import { StatusPill } from "../components/StatusPill";
@@ -15,7 +15,7 @@ const featureCopy: Array<{
   { key: "autoPick", label: "Timed auto-pick", description: "Hover now, then lock near the deadline unless you intervene." },
   { key: "autoBan", label: "Timed auto-ban", description: "Skip allied intents and use the first valid priority." },
   { key: "autoSpells", label: "Summoner spells", description: "Apply the selected profile's spell pair." },
-  { key: "autoRunes", label: "Rune preset", description: "Update only the Rose Enhanced-owned rune page." },
+  { key: "autoRunes", label: "Rune preset", description: "Update only the SummonerKit-owned rune page." },
 ];
 
 export function AutomationPage({
@@ -40,7 +40,7 @@ export function AutomationPage({
       {surface === "desktop" ? <section className="automation-mode" aria-labelledby="automation-mode-title">
         <div>
           <p className="eyebrow">Execution mode</p>
-          <h2 id="automation-mode-title">Choose how decisions leave Rose Enhanced</h2>
+          <h2 id="automation-mode-title">Choose how decisions leave SummonerKit</h2>
         </div>
         <div className="mode-options">
           <ModeButton mode="dry-run" active={automation.executionMode} icon={Eye} label="Dry run" description="Audit only; never write." onCommand={onCommand} />
@@ -72,7 +72,7 @@ export function AutomationPage({
           <div>
             <p className="eyebrow">Required acknowledgement</p>
             <h2 id="policy-title">Automation can put your account at risk.</h2>
-            <p>Riot's Terms restrict unauthorized automation, and the local client API is unsupported. Rose Enhanced cannot promise that these features are safe or approved.</p>
+            <p>Riot's Terms restrict unauthorized automation, and the local client API is unsupported. SummonerKit cannot promise that these features are safe or approved.</p>
             <a href="https://www.riotgames.com/en/terms-of-service" target="_blank" rel="noreferrer">Read Riot's Terms of Service <ExternalLink size={14} /></a>
           </div>
           {surface === "desktop" ? <button className="button button--warning" type="button" onClick={() => onCommand({ type: "automation.acknowledgeRisk" })}>I understand the risk</button> : <button className="button button--secondary" type="button" onClick={() => onCommand({ type: "desktop.open" })}><MonitorUp size={16} /> Review on desktop</button>}
@@ -83,7 +83,7 @@ export function AutomationPage({
 
       <div className="automation-layout">
         <section className="panel feature-toggles">
-          <div className="panel__header"><div><p className="eyebrow">Global controls</p><h2>Automation features</h2></div><StatusPill tone={automation.riskAcknowledged ? "rose" : "neutral"}>{automation.riskAcknowledged ? "Opt-in" : "Locked"}</StatusPill></div>
+          <div className="panel__header"><div><p className="eyebrow">Global controls</p><h2>Automation features</h2></div><StatusPill tone={automation.riskAcknowledged ? "accent" : "neutral"}>{automation.riskAcknowledged ? "Opt-in" : "Locked"}</StatusPill></div>
           {featureCopy.map((feature) => (
             <Toggle
               key={feature.key}

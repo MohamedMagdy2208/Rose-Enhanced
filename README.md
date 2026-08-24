@@ -1,13 +1,17 @@
-# Rose Enhanced
+# SummonerKit
 
-Rose Enhanced is a privacy-first Windows companion for League of Legends. It
+**A League companion by Mohamed Magdy.**
+
+[User guide](docs/USER_GUIDE.md) · [Releases](https://github.com/MohamedMagdy2208/SummonerKit/releases) · [Security](SECURITY.md) · [MIT License](LICENSE)
+
+SummonerKit is a privacy-first Windows companion for League of Legends. It
 combines collection visibility, read-only loot tracking, opt-in champion-select
 automation, an optional League client tab, and user-installed companion-tool
 integration in one maintainable application.
 
 > [!WARNING]
 > The League Client API is unsupported and can change without notice. Riot's
-> Terms of Service restrict unauthorized automation. Rose Enhanced is not
+> Terms of Service restrict unauthorized automation. SummonerKit is not
 > endorsed by Riot Games, automation is disabled by default, and users proceed
 > at their own risk.
 
@@ -17,7 +21,7 @@ integration in one maintainable application.
 - Local League Client API discovery and event subscriptions.
 - Champion, skin, chroma, ownership, and read-only loot catalog.
 - Profile-based auto-accept, timed pick/ban, summoner spell, and rune support.
-- Hybrid React interface: focused match-time pages inside Rose, with administration in the desktop app.
+- Hybrid React interface: focused match-time pages inside the League client, with administration in the desktop app.
 - Detection and launching of user-installed Rose and Deceive applications.
 - Optional encrypted mobile PWA with queue controls, ready checks, live champion select, loadout choices, device revocation, and an opaque Cloudflare relay.
 - Recent high-elo/pro rune recommendations from an approved versioned feed, plus private per-champion performance analytics from local match history.
@@ -52,13 +56,13 @@ answer a ready check, follow both teams and bans, hover or lock the active local
 action, and change spells, rune pages, or owned skins. Every request waits for a
 desktop result; stale or invalid actions are rejected before an LCU write.
 
-Rose Enhanced does **not** unlock skins, inject into the game process, bypass
+SummonerKit does **not** unlock skins, inject into the game process, bypass
 Vanguard, read game memory, mutate loot, or expose a raw remote LCU proxy.
 
 ## Runes and champion performance
 
 The shared **Runes & Performance** page is available in both the desktop app
-and the Rose client tab. It combines two deliberately separate data paths:
+and the League client tab. It combines two deliberately separate data paths:
 
 - Rune recommendations come from a configured HTTPS feed that aggregates
   recent high-elo, professional, and combined samples. The UI displays patch,
@@ -71,12 +75,12 @@ and the Rose client tab. It combines two deliberately separate data paths:
 Raw match documents, PUUIDs, Riot IDs, and summoner IDs are not written to the
 analytics cache. Only aggregate champion statistics are retained under a
 one-way account key. Applying an online recommendation creates or updates only
-a `Rose Enhanced · ...` rune page and never deletes a user-created page.
+a `SummonerKit · ...` rune page and never deletes a user-created page.
 
 For public distribution, host the feed behind a backend with a Riot production
 key instead of embedding that key in Electron. Set
-`ROSE_ENHANCED_BUILD_DATA_URL` and, for a private feed,
-`ROSE_ENHANCED_BUILD_DATA_TOKEN`. The exact v1 feed schema and aggregation
+`SUMMONERKIT_BUILD_DATA_URL` and, for a private feed,
+`SUMMONERKIT_BUILD_DATA_TOKEN`. The exact v1 feed schema and aggregation
 requirements are documented in [docs/RUNE_DATA_FEED.md](docs/RUNE_DATA_FEED.md).
 
 ## Development
@@ -110,30 +114,47 @@ npm run make
 Unsigned artifacts are development/prerelease builds. Stable public releases
 must be code-signed and published without silent updates.
 
-GitHub Actions runs the same checks and uploads the unsigned Squirrel installer
-and ZIP portable package as clearly labeled prerelease artifacts.
+GitHub Actions runs the same checks and keeps the unsigned Squirrel installer,
+portable ZIP, and update metadata as downloadable workflow artifacts.
+Prerelease version tags publish those files as clearly labeled GitHub
+prereleases; see
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Double-click launcher and startup order
 
-On Windows, double-click **`Open Rose Enhanced.cmd`** in the repository folder.
-The launcher opens an installed Rose Enhanced release when available, otherwise
+On Windows, double-click **`Open SummonerKit.cmd`** in the repository folder.
+The launcher opens an installed SummonerKit release when available, otherwise
 it opens the packaged build from this checkout. For developers with dependencies
 already installed, it falls back to `npm start`.
 
 For the most reliable first setup, use this order:
 
-1. Open **Rose Enhanced** with the launcher and leave it running in the tray.
+1. Open **SummonerKit** with the launcher and leave it running in the tray.
 2. Open the separately installed **Rose** application.
-3. Start the **League client** so Rose/Pengu loads the Enhanced tab.
+3. Start the **League client** so Pengu loads the SummonerKit tab.
 
 After the client tab has been installed and loaded once, the exact order of the
-first two applications is less important. Rose Enhanced must still be running
-before you use the Enhanced tab because it owns the secure local bridge and all
+first two applications is less important. SummonerKit must still be running
+before you use the SummonerKit tab because it owns the secure local bridge and all
 League connections. If League is already open during a plugin install, repair,
-or update, Rose Enhanced asks League to reload only its UI automatically from
+or update, SummonerKit asks League to reload only its UI automatically from
 Home or Lobby. The reload is deferred during matchmaking, ready check, champion
 select, and active games. The launcher deliberately does not start Rose or
 League for you.
+
+The complete installation, feature, mobile pairing, update, and troubleshooting
+walkthrough is in the [SummonerKit user guide](docs/USER_GUIDE.md).
+
+## Updates and releases
+
+The desktop-only **Guide & Updates** page shows the installed version and checks
+the fixed SummonerKit GitHub release feed on demand. An installed Windows Setup
+build downloads a published stable update and waits for the user to choose
+**Restart to install**. It never installs an update silently. Portable,
+development, and prerelease builds open GitHub Releases for manual installation.
+
+The current `0.9.x` line is prerelease software. Stable releases are blocked in
+CI unless their Windows Setup executable has a valid Authenticode signature.
 
 ## Mobile relay development
 
@@ -142,27 +163,27 @@ desktop pairing service:
 
 ```powershell
 npx wrangler secret put PAIRING_ADMIN_SECRET --cwd apps/relay
-npm run dev --workspace @rose-enhanced/relay
-npm run dev --workspace @rose-enhanced/mobile
+npm run dev --workspace @summonerkit/relay
+npm run dev --workspace @summonerkit/mobile
 ```
 
 Do not commit the admin secret. The relay stores short-lived pairing metadata
 and public keys, while forwarding encrypted envelopes without decrypting them.
 Set `MOBILE_ORIGIN` in `apps/relay/wrangler.jsonc` to the deployed PWA origin.
-The desktop process requires `ROSE_ENHANCED_RELAY_URL`,
-`ROSE_ENHANCED_MOBILE_URL`, and `ROSE_ENHANCED_RELAY_ADMIN_SECRET` before the
+The desktop process requires `SUMMONERKIT_RELAY_URL`,
+`SUMMONERKIT_MOBILE_URL`, and `SUMMONERKIT_RELAY_ADMIN_SECRET` before the
 Mobile Control page enables QR pairing.
 
 For a local end-to-end test, use the same secret for
 `PAIRING_ADMIN_SECRET` in the Worker and
-`ROSE_ENHANCED_RELAY_ADMIN_SECRET` in the desktop environment. Create or join a
+`SUMMONERKIT_RELAY_ADMIN_SECRET` in the desktop environment. Create or join a
 League lobby on the PC first; mobile queue control intentionally does not create
 lobbies, invite players, or expose a general LCU request interface.
 
 ## Optional Pengu Loader build
 
 The client surface uses the MIT-licensed Pengu Loader. When Rose is installed,
-Rose Enhanced adds an entry inside Rose's existing `RE` panel and a separate
+SummonerKit adds an entry inside Rose's existing `RE` panel and a separate
 branded icon in League's top navigation. Both open the same secured client
 surface and reuse the same desktop process; no second loader or backend is
 started. The dedicated navigation icon remains available when Rose is absent.
@@ -174,14 +195,14 @@ npm run build:pengu
 ```
 
 This requires Visual Studio Build Tools with MSBuild and the .NET Framework
-desktop targeting tools. Rose Enhanced will reuse a compatible Rose/Pengu
+desktop targeting tools. SummonerKit will reuse a compatible Rose/Pengu
 installation when one is already present instead of launching two loaders.
 
 Packaged builds can also repair or refresh the integration without opening the
 desktop window:
 
 ```powershell
-& '.\Rose Enhanced.exe' --install-client-surface
+& '.\SummonerKit.exe' --install-client-surface
 ```
 
 The desktop companion must remain running while the in-client surface is in
@@ -189,14 +210,14 @@ use; closing its window keeps it available in the system tray. It can be
 started without opening the desktop window:
 
 ```powershell
-& '.\Rose Enhanced.exe' --background
+& '.\SummonerKit.exe' --background
 ```
 
 If a bridge secret is ever exposed, rotate it and refresh the installed client
 surface before restarting League:
 
 ```powershell
-& '.\Rose Enhanced.exe' --rotate-client-token
+& '.\SummonerKit.exe' --rotate-client-token
 ```
 
 ## Privacy and safety
@@ -211,14 +232,15 @@ surface before restarting League:
 - Mobile snapshots exclude account identifiers, collection history, diagnostics, paths, and social data.
 - Mobile control is unavailable until explicitly deployed and configured; its command set remains allowlisted and every result is confirmed by the desktop.
 
-See [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md), and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+See [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md),
+[NOTICE.md](NOTICE.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## License
 
-Rose Enhanced is released under the [MIT License](LICENSE).
+Copyright © 2026 Mohamed Magdy. SummonerKit is released under the
+[MIT License](LICENSE).
 
-Rose Enhanced is not endorsed by Riot Games and does not reflect the views or
+SummonerKit isn't endorsed by Riot Games and doesn't reflect the views or
 opinions of Riot Games or anyone officially involved in producing or managing
 Riot Games properties. Riot Games and all associated properties are trademarks
 or registered trademarks of Riot Games, Inc.

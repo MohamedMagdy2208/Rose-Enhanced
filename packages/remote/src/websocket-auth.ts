@@ -1,5 +1,5 @@
-export const remoteWebSocketProtocol = "rose-enhanced-v1";
-const remoteAuthProtocolPrefix = "rose-enhanced-auth.";
+export const remoteWebSocketProtocol = "summonerkit-v1";
+const remoteAuthProtocolPrefix = "summonerkit-auth.";
 
 export function remoteWebSocketProtocols(accessToken: string): string[] {
   return [remoteWebSocketProtocol, `${remoteAuthProtocolPrefix}${accessToken}`];

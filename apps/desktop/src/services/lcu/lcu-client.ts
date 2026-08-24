@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import https from "node:https";
 import { Buffer } from "node:buffer";
 import WebSocket, { type RawData } from "ws";
-import type { CapabilitySet, LcuConnectionState } from "@rose-enhanced/contracts";
+import type { CapabilitySet, LcuConnectionState } from "@summonerkit/contracts";
 import type { AppLogger } from "../logger";
 import { readLcuCredentials, type LcuCredentials } from "./lockfile";
 
@@ -80,7 +80,7 @@ export class LcuClient extends EventEmitter {
     this.stopping = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    this.socket?.close(1_000, "Rose Enhanced is closing");
+    this.socket?.close(1_000, "SummonerKit is closing");
     this.socket = null;
     this.credentials = null;
   }

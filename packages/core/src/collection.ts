@@ -3,7 +3,7 @@ import type {
   CollectionSnapshot,
   LootHolding,
   SkinRecord,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 export interface RawOwnership {
   owned?: boolean;

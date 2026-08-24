@@ -1,2 +1,2 @@
 export const CLIENT_TAB_PROTOCOL_VERSION = 4;
-export const CLIENT_TAB_PLUGIN_VERSION = "0.8.3";
+export const CLIENT_TAB_PLUGIN_VERSION = "0.9.0";

@@ -4,7 +4,7 @@ import {
   type RawChampion,
   type RawInventoryItem,
   type RawLootItem,
-} from "@rose-enhanced/core";
+} from "@summonerkit/core";
 import type { CompanionStore } from "./companion-store";
 import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";

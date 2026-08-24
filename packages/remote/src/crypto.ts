@@ -69,7 +69,7 @@ async function pairingHmacKey(oneTimeSecret: string, usages: KeyUsage[]): Promis
 async function pairingProofPayload(roomId: string, publicKey: JsonWebKey): Promise<ArrayBuffer> {
   if (!roomId || roomId.length > 128) throw new Error("Invalid remote room identifier.");
   const fingerprint = await publicKeyFingerprint(publicKey);
-  return asArrayBuffer(encoder.encode(`rose-enhanced-pairing:v1:${roomId}:${fingerprint}`));
+  return asArrayBuffer(encoder.encode(`summonerkit-pairing:v1:${roomId}:${fingerprint}`));
 }
 
 export async function createPairingProof(
@@ -114,8 +114,8 @@ async function deriveAesKey(material: CryptoKey, roomId: string, direction: Remo
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: encoder.encode(`rose-enhanced:${roomId}`),
-      info: encoder.encode(`rose-enhanced:v2:${direction}`),
+      salt: encoder.encode(`summonerkit:${roomId}`),
+      info: encoder.encode(`summonerkit:v2:${direction}`),
     },
     material,
     { name: "AES-GCM", length: 256 },

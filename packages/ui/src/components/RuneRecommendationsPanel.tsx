@@ -5,7 +5,7 @@ import type {
   RunePerkRecord,
   RuneRecommendation,
   RuneRecommendationsSnapshot,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import { EmptyState } from "./EmptyState";
 import { StatusPill } from "./StatusPill";
 import { formatRelativeTime, lcuAssetUrl } from "../utils/assets";

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { AutomationProfile, AutomationSettings } from "@rose-enhanced/contracts";
+import type { AutomationProfile, AutomationSettings } from "@summonerkit/contracts";
 import { AutomationEngine, type AutomationContext } from "./automation";
 
 const AhriFallback = 7;

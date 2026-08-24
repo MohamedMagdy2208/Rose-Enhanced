@@ -1,4 +1,4 @@
-import { CLIENT_TAB_PLUGIN_VERSION, type CompanionSnapshot } from "@rose-enhanced/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION, type CompanionSnapshot } from "@summonerkit/contracts";
 
 export const emptySnapshot: CompanionSnapshot = {
   revision: 0,

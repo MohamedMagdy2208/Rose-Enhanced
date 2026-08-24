@@ -1,4 +1,4 @@
-import type { RemoteCompanionSnapshot } from "@rose-enhanced/contracts";
+import type { RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { describe, expect, it } from "vitest";
 import { alliedIntentIds, availableChampionIds, timerSeconds } from "./mobile-view";
 

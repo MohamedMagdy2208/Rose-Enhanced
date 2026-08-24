@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Bookmark, Boxes, CloudOff, Heart, PackageOpen, RefreshCw, Search, ShieldCheck, Sparkles } from "lucide-react";
-import type { CollectionSnapshot, CompanionCommand } from "@rose-enhanced/contracts";
+import type { CollectionSnapshot, CompanionCommand } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
 import { SkinCard } from "../components/SkinCard";
 import { lcuAssetUrl } from "../utils/assets";

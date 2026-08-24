@@ -1,4 +1,4 @@
-import { createDefaultSettings } from "@rose-enhanced/core";
+import { createDefaultSettings } from "@summonerkit/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CompanionStore } from "./companion-store";
 import type { InsightsCache } from "./insights-cache";
@@ -89,15 +89,15 @@ describe("champion performance aggregation", () => {
 
 describe("online rune feed boundary", () => {
   it("requires HTTPS outside local development", () => {
-    expect(() => runeFeedConfiguration({ ROSE_ENHANCED_BUILD_DATA_URL: "http://data.example/runes.json" })).toThrow("HTTPS");
-    expect(runeFeedConfiguration({ ROSE_ENHANCED_BUILD_DATA_URL: "http://127.0.0.1:8788/runes.json" })?.url).toContain("127.0.0.1");
+    expect(() => runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://data.example/runes.json" })).toThrow("HTTPS");
+    expect(runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://127.0.0.1:8788/runes.json" })?.url).toContain("127.0.0.1");
   });
 
   it("accepts a valid versioned feed and publishes its provenance", async () => {
-    vi.stubEnv("ROSE_ENHANCED_BUILD_DATA_URL", "https://data.example/runes.json");
+    vi.stubEnv("SUMMONERKIT_BUILD_DATA_URL", "https://data.example/runes.json");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       schemaVersion: 1,
-      providerName: "Rose approved Riot aggregation",
+      providerName: "SummonerKit approved Riot aggregation",
       recommendations: [{
         id: "ahri-middle-combined-26.16",
         championId: 103,
@@ -118,17 +118,17 @@ describe("online rune feed boundary", () => {
     const store = new CompanionStore(createDefaultSettings("test-token"));
     const service = new InsightsService(lcu, store, logger, noCache);
     await service.refreshRunes();
-    expect(store.getSnapshot().insights.runes).toMatchObject({ status: "ready", source: "online", providerName: "Rose approved Riot aggregation" });
+    expect(store.getSnapshot().insights.runes).toMatchObject({ status: "ready", source: "online", providerName: "SummonerKit approved Riot aggregation" });
     expect(store.getSnapshot().insights.runes.recommendations).toHaveLength(1);
   });
 });
 
 describe("recommended rune page application", () => {
-  it("updates only the matching Rose page and never deletes another page", async () => {
-    const put = vi.fn(async (endpoint: string) => endpoint.includes("/pages/7") ? { id: 7, name: "Rose Enhanced · Ahri middle" } : undefined);
+  it("updates only the matching SummonerKit page and never deletes another page", async () => {
+    const put = vi.fn(async (endpoint: string) => endpoint.includes("/pages/7") ? { id: 7, name: "SummonerKit · Ahri middle" } : undefined);
     const lcu = {
       isConnected: () => true,
-      get: vi.fn(async () => [{ id: 7, name: "Rose Enhanced · Ahri middle" }, { id: 8, name: "My page" }]),
+      get: vi.fn(async () => [{ id: 7, name: "SummonerKit · Ahri middle" }, { id: 8, name: "My page" }]),
       put,
       post: vi.fn(),
       delete: vi.fn(),
@@ -154,7 +154,7 @@ describe("recommended rune page application", () => {
     });
     const service = new InsightsService(lcu, store, logger, noCache);
     await service.applyRecommendation("ahri-middle-combined-26.16");
-    expect(put).toHaveBeenCalledWith("/lol-perks/v1/pages/7", expect.objectContaining({ id: 7, name: "Rose Enhanced · Ahri middle" }));
+    expect(put).toHaveBeenCalledWith("/lol-perks/v1/pages/7", expect.objectContaining({ id: 7, name: "SummonerKit · Ahri middle" }));
     expect(put).toHaveBeenCalledWith("/lol-perks/v1/currentpage", 7);
     expect(lcu.delete).not.toHaveBeenCalled();
   });

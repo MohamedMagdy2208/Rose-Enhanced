@@ -5,7 +5,7 @@ import type {
   CompanionSnapshot,
   RuneRecommendationAudience,
   RuneRecommendationRole,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import { ChampionPerformancePanel } from "../components/ChampionPerformancePanel";
 import { RuneRecommendationsPanel } from "../components/RuneRecommendationsPanel";
 

@@ -1,4 +1,4 @@
-const bridgeSessionProtocolPrefix = "rose-enhanced-session.";
+const bridgeSessionProtocolPrefix = "summonerkit-session.";
 
 export function expectedLoopbackHost(port: number): string {
   return `127.0.0.1:${port}`;

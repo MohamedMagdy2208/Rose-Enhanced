@@ -6,7 +6,7 @@ import type {
   QueueActivity,
   RunePageOption,
   SummonerSpellOption,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import { emptyLeagueSessionState } from "./league-session-state";
 import type { LcuClient, LcuEvent } from "./lcu/lcu-client";
@@ -135,7 +135,7 @@ function normalizeRunePages(candidates: unknown): RunePageOption[] {
     const raw = candidate as RawRunePage;
     const id = positiveInteger(raw.id);
     const name = boundedText(raw.name);
-    return id && name ? [{ id, name, current: raw.current === true, roseManaged: name.startsWith("Rose Enhanced · ") }] : [];
+    return id && name ? [{ id, name, current: raw.current === true, summonerKitManaged: name.startsWith("SummonerKit · ") }] : [];
   }).slice(0, 100);
 }
 

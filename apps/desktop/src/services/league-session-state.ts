@@ -1,4 +1,4 @@
-import type { LeagueSessionState } from "@rose-enhanced/contracts";
+import type { LeagueSessionState } from "@summonerkit/contracts";
 
 export function emptyLeagueSessionState(): LeagueSessionState {
   return {

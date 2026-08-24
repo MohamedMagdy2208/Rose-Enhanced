@@ -1,6 +1,6 @@
 {
-  "name": "@rose-enhanced/contracts",
-  "version": "0.1.0",
+  "name": "@summonerkit/contracts",
+  "version": "0.9.0-beta.1",
   "private": true,
   "type": "module",
   "exports": {

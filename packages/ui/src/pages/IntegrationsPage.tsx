@@ -1,11 +1,11 @@
 import { ExternalLink, FolderOpen, Play, PlugZap, Power, Puzzle, ShieldCheck } from "lucide-react";
-import type { CompanionCommand, IntegrationState } from "@rose-enhanced/contracts";
+import type { CompanionCommand, IntegrationState } from "@summonerkit/contracts";
 import { StatusPill } from "../components/StatusPill";
 
 const descriptions: Record<IntegrationState["id"], string> = {
-  rose: "Open the separately installed Rose skin tool. Rose Enhanced never bundles its injector or skin files.",
+  rose: "Open the separately installed Rose skin tool. SummonerKit never bundles its injector or skin files.",
   deceive: "Launch the separately installed Deceive application for its independent presence controls.",
-  pengu: "Add Rose Enhanced inside Rose's existing RE panel and as a separate branded League navigation icon. Both access points reuse the same secured client surface.",
+  pengu: "Add SummonerKit inside Rose's existing RE panel and as a separate branded League navigation icon. Both access points reuse the same secured client surface.",
 };
 
 export function IntegrationsPage({
@@ -20,7 +20,7 @@ export function IntegrationsPage({
       <header className="page-header">
         <p className="eyebrow">Optional integrations</p>
         <h1>Connected, never combined.</h1>
-        <p className="page-lede">Third-party applications remain user-installed, independently licensed processes. Rose Enhanced only detects and launches them.</p>
+        <p className="page-lede">Third-party applications remain user-installed, independently licensed processes. SummonerKit only detects and launches them.</p>
       </header>
 
       <section className="integration-grid">
@@ -31,7 +31,7 @@ export function IntegrationsPage({
 
       <section className="panel integration-policy">
         <ShieldCheck size={20} aria-hidden="true" />
-        <div><h2>Process ownership matters</h2><p>Rose Enhanced only stops a process it started itself, and requests a graceful close before using any fallback. Existing Rose and Pengu sessions are reused to prevent conflicting loader instances.</p></div>
+        <div><h2>Process ownership matters</h2><p>SummonerKit only stops a process it started itself, and requests a graceful close before using any fallback. Existing Rose and Pengu sessions are reused to prevent conflicting loader instances.</p></div>
       </section>
     </div>
   );
@@ -43,7 +43,7 @@ function IntegrationCard({ integration, onCommand }: { integration: IntegrationS
     <article className="integration-card">
       <div className="integration-card__top">
         <span className={`integration-card__icon integration-card__icon--${integration.id}`} aria-hidden="true">{isPengu ? <Puzzle size={22} /> : <PlugZap size={22} />}</span>
-        <StatusPill tone={integration.running ? "positive" : integration.installed ? "rose" : "neutral"}>{integration.running ? "Running" : integration.installed ? "Installed" : "Not found"}</StatusPill>
+        <StatusPill tone={integration.running ? "positive" : integration.installed ? "accent" : "neutral"}>{integration.running ? "Running" : integration.installed ? "Installed" : "Not found"}</StatusPill>
       </div>
       <div><h2>{integration.name}</h2><p>{descriptions[integration.id]}</p></div>
       <dl className="integration-meta"><div><dt>Path</dt><dd title={integration.executablePath ?? "Not configured"}>{integration.executablePath ?? "Not configured"}</dd></div>{integration.version ? <div><dt>Version</dt><dd>{integration.version}</dd></div> : null}</dl>

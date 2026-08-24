@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CLIENT_TAB_PLUGIN_VERSION } from "@rose-enhanced/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION } from "@summonerkit/contracts";
 
 const templateUrl = new URL("../pengu/index.template.js", import.meta.url);
 const openWindows: Window[] = [];
@@ -14,11 +14,11 @@ async function loadBootstrap(window: Window, bridgeAvailable = true): Promise<vo
   }) as typeof window.fetch;
   const template = await readFile(templateUrl, "utf8");
   const executableSource = template
-    .replaceAll("__ROSE_ENHANCED_TOKEN__", testBridgeToken)
-    .replaceAll("__ROSE_ENHANCED_PORT__", "17654")
-    .replaceAll("__ROSE_ENHANCED_NAV_ICON__", "data:image/png;base64,dGVzdA==")
-    .replaceAll("__ROSE_ENHANCED_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
-    .replaceAll("__ROSE_ENHANCED_PROTOCOL_VERSION__", "4");
+    .replaceAll("__SUMMONERKIT_TOKEN__", testBridgeToken)
+    .replaceAll("__SUMMONERKIT_PORT__", "17654")
+    .replaceAll("__SUMMONERKIT_NAV_ICON__", "data:image/png;base64,dGVzdA==")
+    .replaceAll("__SUMMONERKIT_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
+    .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", "4");
   window.eval(executableSource);
   await new Promise((resolve) => setTimeout(resolve, 10));
 }
@@ -67,22 +67,22 @@ describe("Pengu client-surface integration", () => {
       }),
     );
     await new Promise((resolve) => setTimeout(resolve, 10));
-    const entry = window.document.getElementById("rose-enhanced-settings-entry");
+    const entry = window.document.getElementById("summonerkit-settings-entry");
     const navigation = window.document.getElementById(
-      "rose-enhanced-navigation-item",
+      "summonerkit-navigation-item",
     );
 
-    expect(entry?.textContent).toContain("Rose Enhanced");
+    expect(entry?.textContent).toContain("SummonerKit");
     expect(roseNavigation.nextElementSibling).toBe(navigation);
     expect(navigation?.getAttribute("role")).toBe("button");
-    expect(navigation?.getAttribute("aria-label")).toBe("Open Rose Enhanced");
+    expect(navigation?.getAttribute("aria-label")).toBe("Open SummonerKit");
     expect(
-      navigation?.querySelector<HTMLElement>(".rose-enhanced-navigation__icon")
+      navigation?.querySelector<HTMLElement>(".summonerkit-navigation__icon")
         ?.style.backgroundImage,
     ).toContain("data:image/png;base64,dGVzdA==");
     entry?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
-    const overlay = window.document.getElementById("rose-enhanced-client-overlay");
+    const overlay = window.document.getElementById("summonerkit-client-overlay");
     const frame = overlay?.querySelector<HTMLIFrameElement>("iframe");
 
     expect(overlay).not.toBeNull();
@@ -98,7 +98,7 @@ describe("Pengu client-surface integration", () => {
     frame?.dispatchEvent(new window.Event("load"));
     expect(postMessage).toHaveBeenCalledWith(
       {
-        type: "rose-enhanced.auth",
+        type: "summonerkit.auth",
         token: testBridgeToken,
         pluginVersion: CLIENT_TAB_PLUGIN_VERSION,
         protocolVersion: 4,
@@ -106,21 +106,21 @@ describe("Pengu client-surface integration", () => {
       "http://127.0.0.1:17654",
     );
 
-    overlay?.querySelector<HTMLButtonElement>(".rose-enhanced-close")?.click();
+    overlay?.querySelector<HTMLButtonElement>(".summonerkit-close")?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(window.document.getElementById("rose-settings-panel")).not.toBeNull();
-    expect(window.document.activeElement?.id).toBe("rose-enhanced-settings-entry");
+    expect(window.document.activeElement?.id).toBe("summonerkit-settings-entry");
 
     navigation?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(navigation?.getAttribute("aria-expanded")).toBe("true");
     expect(
       window.document
-        .getElementById("rose-enhanced-client-overlay")
-        ?.querySelector(".rose-enhanced-close")?.textContent,
-    ).toBe("Close Rose Enhanced");
+        .getElementById("summonerkit-client-overlay")
+        ?.querySelector(".summonerkit-close")?.textContent,
+    ).toBe("Close SummonerKit");
     window.document
-      .querySelector<HTMLButtonElement>(".rose-enhanced-close")
+      .querySelector<HTMLButtonElement>(".summonerkit-close")
       ?.click();
     expect(navigation?.getAttribute("aria-expanded")).toBe("false");
     expect(window.document.activeElement).toBe(navigation);
@@ -131,7 +131,7 @@ describe("Pengu client-surface integration", () => {
     window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
     await loadBootstrap(window);
     const navigation = window.document.querySelector<HTMLElement>(
-      "#rose-enhanced-navigation-item",
+      "#summonerkit-navigation-item",
     );
 
     expect(navigation?.getAttribute("role")).toBe("button");
@@ -140,14 +140,14 @@ describe("Pengu client-surface integration", () => {
       new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
     await new Promise((resolve) => setTimeout(resolve, 10));
-    const overlay = window.document.getElementById("rose-enhanced-client-overlay");
+    const overlay = window.document.getElementById("summonerkit-client-overlay");
     expect(overlay?.getAttribute("role")).toBe("dialog");
     expect(overlay?.querySelector("iframe")?.getAttribute("referrerpolicy")).toBe(
       "no-referrer",
     );
 
-    overlay?.querySelector<HTMLButtonElement>(".rose-enhanced-close")?.click();
-    expect(window.document.getElementById("rose-enhanced-client-overlay")).toBeNull();
+    overlay?.querySelector<HTMLButtonElement>(".summonerkit-close")?.click();
+    expect(window.document.getElementById("summonerkit-client-overlay")).toBeNull();
     expect(window.document.activeElement).toBe(navigation);
   });
 
@@ -161,7 +161,7 @@ describe("Pengu client-surface integration", () => {
     `;
     await loadBootstrap(window);
     const enhancedNavigation = window.document.querySelector<HTMLElement>(
-      "#rose-enhanced-navigation-item",
+      "#summonerkit-navigation-item",
     );
     const lootNavigation = window.document.querySelector<HTMLElement>(
       "#loot-navigation",
@@ -171,10 +171,10 @@ describe("Pengu client-surface integration", () => {
 
     enhancedNavigation?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(window.document.getElementById("rose-enhanced-client-overlay")).not.toBeNull();
+    expect(window.document.getElementById("summonerkit-client-overlay")).not.toBeNull();
 
     lootNavigation?.click();
-    expect(window.document.getElementById("rose-enhanced-client-overlay")).toBeNull();
+    expect(window.document.getElementById("summonerkit-client-overlay")).toBeNull();
     expect(enhancedNavigation?.getAttribute("aria-expanded")).toBe("false");
     expect(leagueNavigationClicks).toBe(1);
   });
@@ -186,14 +186,14 @@ describe("Pengu client-surface integration", () => {
     await loadBootstrap(window, false);
 
     window.document
-      .querySelector<HTMLButtonElement>("#rose-enhanced-navigation-item")
+      .querySelector<HTMLButtonElement>("#summonerkit-navigation-item")
       ?.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    const overlay = window.document.getElementById("rose-enhanced-client-overlay");
-    const retry = overlay?.querySelector<HTMLButtonElement>(".rose-enhanced-retry");
+    const overlay = window.document.getElementById("summonerkit-client-overlay");
+    const retry = overlay?.querySelector<HTMLButtonElement>(".summonerkit-retry");
     expect(overlay?.querySelector("h1")?.textContent).toBe(
-      "Rose Enhanced isn’t running",
+      "SummonerKit isn’t running",
     );
     expect(retry?.disabled).toBe(false);
     expect(retry?.textContent).toBe("Retry connection");

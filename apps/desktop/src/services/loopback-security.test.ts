@@ -15,14 +15,14 @@ describe("loopback bridge security", () => {
   });
 
   it.each([
-    ["rose-enhanced-v1, rose-enhanced-session.abc123", "abc123"],
-    ["rose-enhanced-v1", null],
+    ["summonerkit-v1, summonerkit-session.abc123", "abc123"],
+    ["summonerkit-v1", null],
     [undefined, null],
   ])("extracts a one-use session from %s", (header, expected) => {
     expect(bridgeSessionFromProtocols(header)).toBe(expected);
   });
 
   it("encodes a session as a valid WebSocket subprotocol token", () => {
-    expect(bridgeSessionProtocol("abc_123-def")).toBe("rose-enhanced-session.abc_123-def");
+    expect(bridgeSessionProtocol("abc_123-def")).toBe("summonerkit-session.abc_123-def");
   });
 });

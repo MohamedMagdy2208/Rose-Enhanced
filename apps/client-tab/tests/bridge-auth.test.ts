@@ -1,6 +1,6 @@
 import { Window as HappyWindow } from "happy-dom";
 import { describe, expect, it } from "vitest";
-import { CLIENT_TAB_PLUGIN_VERSION } from "@rose-enhanced/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION } from "@summonerkit/contracts";
 import {
   BRIDGE_AUTH_MESSAGE_TYPE,
   receiveBridgeAuthorization,

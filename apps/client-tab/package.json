@@ -1,6 +1,6 @@
 {
-  "name": "@rose-enhanced/client-tab",
-  "version": "0.1.0",
+  "name": "@summonerkit/client-tab",
+  "version": "0.9.0-beta.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,8 +9,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@rose-enhanced/contracts": "0.1.0",
-    "@rose-enhanced/ui": "0.1.0",
+    "@summonerkit/contracts": "*",
+    "@summonerkit/ui": "*",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

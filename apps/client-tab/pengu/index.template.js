@@ -1,78 +1,78 @@
 /**
- * Rose Enhanced client-surface bootstrap.
+ * SummonerKit client-surface bootstrap.
  * Generated with a local bridge token when installed by the desktop app.
  */
 (() => {
   "use strict";
 
-  const pluginVersion = "__ROSE_ENHANCED_PLUGIN_VERSION__";
-  const protocolVersion = Number("__ROSE_ENHANCED_PROTOCOL_VERSION__");
+  const pluginVersion = "__SUMMONERKIT_PLUGIN_VERSION__";
+  const protocolVersion = Number("__SUMMONERKIT_PROTOCOL_VERSION__");
   const config = Object.freeze({
-    port: Number("__ROSE_ENHANCED_PORT__"),
-    token: "__ROSE_ENHANCED_TOKEN__",
-    navigationIcon: "__ROSE_ENHANCED_NAV_ICON__",
+    port: Number("__SUMMONERKIT_PORT__"),
+    token: "__SUMMONERKIT_TOKEN__",
+    navigationIcon: "__SUMMONERKIT_NAV_ICON__",
     pluginVersion,
     protocolVersion,
   });
   const bridgeOrigin = `http://127.0.0.1:${config.port}`;
-  const bridgeAuthMessageType = "rose-enhanced.auth";
+  const bridgeAuthMessageType = "summonerkit.auth";
   const ids = Object.freeze({
-    navigation: "rose-enhanced-navigation-item",
-    navigationSeparator: "rose-enhanced-navigation-separator",
-    overlay: "rose-enhanced-client-overlay",
-    roseEntry: "rose-enhanced-settings-entry",
-    styles: "rose-enhanced-styles",
+    navigation: "summonerkit-navigation-item",
+    navigationSeparator: "summonerkit-navigation-separator",
+    overlay: "summonerkit-client-overlay",
+    roseEntry: "summonerkit-settings-entry",
+    styles: "summonerkit-styles",
   });
   const rosePanelId = "rose-settings-panel";
   const roseNavigationSelector =
     "lol-uikit-navigation-item.menu_item_Golden.Rose";
   const roseEntryMarkup = `
-    <span class="rose-enhanced-settings-entry__mark" aria-hidden="true">RE+</span>
-    <span class="rose-enhanced-settings-entry__copy">
-      <strong>Rose Enhanced</strong>
+    <span class="summonerkit-settings-entry__mark" aria-hidden="true">SK</span>
+    <span class="summonerkit-settings-entry__copy">
+      <strong>SummonerKit</strong>
       <small>Collection, loot, and automation</small>
     </span>
-    <span class="rose-enhanced-settings-entry__arrow" aria-hidden="true">›</span>
+    <span class="summonerkit-settings-entry__arrow" aria-hidden="true">›</span>
   `;
   const stylesheet = `
     #${ids.overlay} { position: fixed; inset: 78px 0 0; z-index: 100000; display: grid; grid-template-rows: 46px minmax(0, 1fr); color: #f0e6d2; background: #090b0f; }
     #${ids.overlay} iframe { width: 100%; height: 100%; border: 0; background: #090b0f; }
-    #${ids.overlay} .rose-enhanced-content { min-height: 0; }
-    #${ids.overlay} .rose-enhanced-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; border-bottom: 1px solid #463714; background: #010a13; }
-    #${ids.overlay} .rose-enhanced-identity { display: flex; align-items: center; gap: 8px; color: #a09b8c; font: 700 13px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.08em; text-transform: uppercase; }
-    #${ids.overlay} .rose-enhanced-identity__rose { color: #f06a7f; }
-    #${ids.overlay} .rose-enhanced-close { min-height: 32px; padding: 0 12px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
-    #${ids.overlay} .rose-enhanced-close:hover,
-    #${ids.overlay} .rose-enhanced-retry:hover { color: #f0e6d2; border-color: #c89b3c; }
-    #${ids.overlay} .rose-enhanced-close:focus-visible,
-    #${ids.overlay} .rose-enhanced-retry:focus-visible,
+    #${ids.overlay} .summonerkit-content { min-height: 0; }
+    #${ids.overlay} .summonerkit-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; border-bottom: 1px solid #463714; background: #010a13; }
+    #${ids.overlay} .summonerkit-identity { display: flex; align-items: center; gap: 8px; color: #a09b8c; font: 700 13px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.08em; text-transform: uppercase; }
+    #${ids.overlay} .summonerkit-identity__accent { color: #f06a7f; }
+    #${ids.overlay} .summonerkit-close { min-height: 32px; padding: 0 12px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
+    #${ids.overlay} .summonerkit-close:hover,
+    #${ids.overlay} .summonerkit-retry:hover { color: #f0e6d2; border-color: #c89b3c; }
+    #${ids.overlay} .summonerkit-close:focus-visible,
+    #${ids.overlay} .summonerkit-retry:focus-visible,
     #${ids.roseEntry}:focus-visible,
     #${ids.navigation}:focus-visible { outline: 2px solid #cdfafa; outline-offset: -3px; }
     #${ids.roseEntry} { box-sizing: border-box; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px; color: #f0e6d2; text-align: left; background: #1e2328; border: 1px solid #785a28; cursor: pointer; }
     #${ids.roseEntry}:hover { border-color: #c89b3c; background: #242a30; }
-    #${ids.roseEntry} .rose-enhanced-settings-entry__mark { display: grid; place-items: center; width: 38px; height: 32px; color: #f06a7f; border-right: 1px solid #463714; font: 700 13px/1 Georgia, serif; }
-    #${ids.roseEntry} .rose-enhanced-settings-entry__copy { display: grid; gap: 2px; }
+    #${ids.roseEntry} .summonerkit-settings-entry__mark { display: grid; place-items: center; width: 38px; height: 32px; color: #f06a7f; border-right: 1px solid #463714; font: 700 13px/1 Georgia, serif; }
+    #${ids.roseEntry} .summonerkit-settings-entry__copy { display: grid; gap: 2px; }
     #${ids.roseEntry} strong { font: 700 14px/1.1 "Beaufort for LOL", Georgia, serif; }
     #${ids.roseEntry} small { color: #a09b8c; font: 12px/1.2 Arial, sans-serif; }
-    #${ids.roseEntry} .rose-enhanced-settings-entry__arrow { color: #c8aa6e; font: 24px/1 Arial, sans-serif; }
+    #${ids.roseEntry} .summonerkit-settings-entry__arrow { color: #c8aa6e; font: 24px/1 Arial, sans-serif; }
     #${ids.navigation} { position: relative; display: grid; place-items: center; min-width: 64px; height: 78px; cursor: pointer; }
-    #${ids.navigation} .rose-enhanced-navigation__wrapper { position: relative; display: grid; place-items: center; width: 100%; height: 100%; }
-    #${ids.navigation} .rose-enhanced-navigation__glow { position: absolute; inset: 8px 7px; opacity: 0; background: radial-gradient(circle, rgb(240 106 127 / 28%) 0, transparent 68%); transition: opacity 140ms ease; }
-    #${ids.navigation} .rose-enhanced-navigation__icon { width: 38px; height: 38px; background-color: transparent !important; background-position: center; background-repeat: no-repeat; background-size: contain; filter: saturate(.9) brightness(.92); transition: filter 140ms ease, transform 140ms ease; }
-    #${ids.navigation}:hover .rose-enhanced-navigation__glow,
-    #${ids.navigation}[aria-expanded="true"] .rose-enhanced-navigation__glow { opacity: 1; }
-    #${ids.navigation}:hover .rose-enhanced-navigation__icon,
-    #${ids.navigation}[aria-expanded="true"] .rose-enhanced-navigation__icon { filter: saturate(1.08) brightness(1.1); transform: translateY(-1px); }
+    #${ids.navigation} .summonerkit-navigation__wrapper { position: relative; display: grid; place-items: center; width: 100%; height: 100%; }
+    #${ids.navigation} .summonerkit-navigation__glow { position: absolute; inset: 8px 7px; opacity: 0; background: radial-gradient(circle, rgb(240 106 127 / 28%) 0, transparent 68%); transition: opacity 140ms ease; }
+    #${ids.navigation} .summonerkit-navigation__icon { width: 38px; height: 38px; background-color: transparent !important; background-position: center; background-repeat: no-repeat; background-size: contain; filter: saturate(.9) brightness(.92); transition: filter 140ms ease, transform 140ms ease; }
+    #${ids.navigation}:hover .summonerkit-navigation__glow,
+    #${ids.navigation}[aria-expanded="true"] .summonerkit-navigation__glow { opacity: 1; }
+    #${ids.navigation}:hover .summonerkit-navigation__icon,
+    #${ids.navigation}[aria-expanded="true"] .summonerkit-navigation__icon { filter: saturate(1.08) brightness(1.1); transform: translateY(-1px); }
     #${ids.navigation}[aria-expanded="true"]::after { position: absolute; right: 9px; bottom: 0; left: 9px; height: 2px; content: ""; background: #c89b3c; box-shadow: 0 0 8px rgb(200 155 60 / 70%); }
-    #${ids.overlay} .rose-enhanced-connection { box-sizing: border-box; display: grid; place-items: center; width: 100%; height: 100%; padding: 32px; background: radial-gradient(circle at 50% 28%, #14202a 0, #090b0f 48%); }
-    #${ids.overlay} .rose-enhanced-connection-card { width: min(520px, 100%); padding: 28px; text-align: center; border: 1px solid #463714; background: #010a13; box-shadow: 0 18px 48px rgb(0 0 0 / 45%); }
-    #${ids.overlay} .rose-enhanced-connection-mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; color: #f06a7f; border: 1px solid #785a28; font: 700 15px/1 Georgia, serif; }
-    #${ids.overlay} .rose-enhanced-connection h1 { margin: 0 0 10px; color: #f0e6d2; font: 700 24px/1.2 "Beaufort for LOL", Georgia, serif; }
-    #${ids.overlay} .rose-enhanced-connection p { max-width: 420px; margin: 0 auto 20px; color: #a09b8c; font: 14px/1.55 Arial, sans-serif; }
-    #${ids.overlay} .rose-enhanced-retry { min-height: 36px; padding: 0 18px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
-    #${ids.overlay} .rose-enhanced-retry:disabled { color: #5b5a56; border-color: #3c3c3c; cursor: wait; }
+    #${ids.overlay} .summonerkit-connection { box-sizing: border-box; display: grid; place-items: center; width: 100%; height: 100%; padding: 32px; background: radial-gradient(circle at 50% 28%, #14202a 0, #090b0f 48%); }
+    #${ids.overlay} .summonerkit-connection-card { width: min(520px, 100%); padding: 28px; text-align: center; border: 1px solid #463714; background: #010a13; box-shadow: 0 18px 48px rgb(0 0 0 / 45%); }
+    #${ids.overlay} .summonerkit-connection-mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; color: #f06a7f; border: 1px solid #785a28; font: 700 15px/1 Georgia, serif; }
+    #${ids.overlay} .summonerkit-connection h1 { margin: 0 0 10px; color: #f0e6d2; font: 700 24px/1.2 "Beaufort for LOL", Georgia, serif; }
+    #${ids.overlay} .summonerkit-connection p { max-width: 420px; margin: 0 auto 20px; color: #a09b8c; font: 14px/1.55 Arial, sans-serif; }
+    #${ids.overlay} .summonerkit-retry { min-height: 36px; padding: 0 18px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
+    #${ids.overlay} .summonerkit-retry:disabled { color: #5b5a56; border-color: #3c3c3c; cursor: wait; }
     @media (max-width: 760px) {
-      #${ids.overlay} .rose-enhanced-close { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #${ids.overlay} .summonerkit-close { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       #${ids.roseEntry} small { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -139,21 +139,21 @@
 
   const createIdentity = () => {
     const identity = document.createElement("div");
-    identity.className = "rose-enhanced-identity";
+    identity.className = "summonerkit-identity";
     identity.innerHTML = `
-      <span class="rose-enhanced-identity__rose">ROSE</span>
-      <span aria-hidden="true">/</span>
-      <span>Enhanced</span>
+      <span class="summonerkit-identity__accent">SUMMONERKIT</span>
+      <span aria-hidden="true">·</span>
+      <span>BY MOHAMED MAGDY</span>
     `;
     return identity;
   };
 
   const createToolbar = (closeLabel, closeAction) => {
     const toolbar = document.createElement("header");
-    toolbar.className = "rose-enhanced-toolbar";
+    toolbar.className = "summonerkit-toolbar";
     const closeButton = document.createElement("button");
     closeButton.type = "button";
-    closeButton.className = "rose-enhanced-close";
+    closeButton.className = "summonerkit-close";
     closeButton.setAttribute("aria-label", closeLabel);
     closeButton.textContent = closeLabel;
     closeButton.addEventListener("click", closeAction);
@@ -163,7 +163,7 @@
 
   const createClientFrame = () => {
     const frame = document.createElement("iframe");
-    frame.title = "Rose Enhanced";
+    frame.title = "SummonerKit";
     frame.addEventListener("load", () => {
       frame.contentWindow?.postMessage(
         {
@@ -206,33 +206,33 @@
 
   const createConnectionContent = () => {
     const content = document.createElement("main");
-    content.className = "rose-enhanced-content rose-enhanced-connection";
+    content.className = "summonerkit-content summonerkit-connection";
     content.setAttribute("aria-live", "polite");
     content.innerHTML = `
-      <section class="rose-enhanced-connection-card">
-        <div class="rose-enhanced-connection-mark" aria-hidden="true">RE+</div>
-        <h1>Connecting to Rose Enhanced…</h1>
+      <section class="summonerkit-connection-card">
+        <div class="summonerkit-connection-mark" aria-hidden="true">SK</div>
+        <h1>Connecting to SummonerKit…</h1>
         <p>Checking the desktop companion on this PC.</p>
-        <button class="rose-enhanced-retry" type="button" disabled>Connecting…</button>
+        <button class="summonerkit-retry" type="button" disabled>Connecting…</button>
       </section>
     `;
     return content;
   };
 
   const showOfflineState = (content, retryButton) => {
-    content.querySelector("h1").textContent = "Rose Enhanced isn’t running";
+    content.querySelector("h1").textContent = "SummonerKit isn’t running";
     content.querySelector("p").textContent =
-      "Start Rose Enhanced on Windows, then retry. The companion can stay quietly in the system tray.";
+      "Start SummonerKit on Windows, then retry. The companion can stay quietly in the system tray.";
     retryButton.disabled = false;
     retryButton.textContent = "Retry connection";
     retryButton.focus();
   };
 
   const connectClient = async (content) => {
-    const retryButton = content.querySelector(".rose-enhanced-retry");
+    const retryButton = content.querySelector(".summonerkit-retry");
     retryButton.disabled = true;
     retryButton.textContent = "Connecting…";
-    content.querySelector("h1").textContent = "Connecting to Rose Enhanced…";
+    content.querySelector("h1").textContent = "Connecting to SummonerKit…";
     content.querySelector("p").textContent = "Checking the desktop companion on this PC.";
 
     if (!(await bridgeIsAvailable())) {
@@ -241,7 +241,7 @@
     }
 
     if (!content.isConnected) return;
-    content.className = "rose-enhanced-content";
+    content.className = "summonerkit-content";
     content.removeAttribute("aria-live");
     content.replaceChildren(createClientFrame());
   };
@@ -249,7 +249,7 @@
   const createClientContent = () => {
     const content = createConnectionContent();
     content
-      .querySelector(".rose-enhanced-retry")
+      .querySelector(".summonerkit-retry")
       .addEventListener("click", () => void connectClient(content));
     return content;
   };
@@ -259,7 +259,7 @@
     overlay.id = ids.overlay;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Rose Enhanced companion");
+    overlay.setAttribute("aria-label", "SummonerKit companion");
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeAction();
     });
@@ -287,15 +287,15 @@
 
   const openStandaloneOverlay = (triggerElement) => {
     lastFocusedElement = triggerElement;
-    mountOverlay("Close Rose Enhanced", restorePreviousFocus);
+    mountOverlay("Close SummonerKit", restorePreviousFocus);
   };
 
   const createRoseEntryButton = () => {
     const button = document.createElement("button");
     button.id = ids.roseEntry;
     button.type = "button";
-    button.className = "rose-enhanced-settings-entry";
-    button.setAttribute("aria-label", "Open Rose Enhanced in the League client");
+    button.className = "summonerkit-settings-entry";
+    button.setAttribute("aria-label", "Open SummonerKit in the League client");
     button.innerHTML = roseEntryMarkup;
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -327,11 +327,11 @@
   const configureNavigationItem = (navigationItem) => {
     navigationItem.id = ids.navigation;
     navigationItem.className =
-      "main-navigation-menu-item menu_item_RoseEnhanced ember-view";
-    navigationItem.title = "Rose Enhanced";
+      "main-navigation-menu-item menu_item_SummonerKit ember-view";
+    navigationItem.title = "SummonerKit";
     navigationItem.tabIndex = 0;
     navigationItem.setAttribute("role", "button");
-    navigationItem.setAttribute("aria-label", "Open Rose Enhanced");
+    navigationItem.setAttribute("aria-label", "Open SummonerKit");
     navigationItem.setAttribute("aria-haspopup", "dialog");
     navigationItem.setAttribute("aria-expanded", "false");
   };
@@ -339,11 +339,11 @@
   const createNavigationArtwork = () => {
     const iconWrapper = document.createElement("div");
     iconWrapper.className =
-      "menu-item-icon-wrapper rose-enhanced-navigation__wrapper";
+      "menu-item-icon-wrapper summonerkit-navigation__wrapper";
     const iconGlow = document.createElement("div");
-    iconGlow.className = "menu-item-glow rose-enhanced-navigation__glow";
+    iconGlow.className = "menu-item-glow summonerkit-navigation__glow";
     const iconArtwork = document.createElement("div");
-    iconArtwork.className = "menu-item-icon rose-enhanced-navigation__icon";
+    iconArtwork.className = "menu-item-icon summonerkit-navigation__icon";
     iconArtwork.setAttribute("aria-hidden", "true");
     iconArtwork.style.backgroundImage = `url("${config.navigationIcon}")`;
     iconArtwork.style.webkitMaskImage = "none";

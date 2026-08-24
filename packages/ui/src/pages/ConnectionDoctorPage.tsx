@@ -6,7 +6,7 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
-import type { CompanionCommand, CompanionSnapshot, ConnectionDoctorCheck } from "@rose-enhanced/contracts";
+import type { CompanionCommand, CompanionSnapshot, ConnectionDoctorCheck } from "@summonerkit/contracts";
 import { StatusPill } from "../components/StatusPill";
 import { formatRelativeTime } from "../utils/assets";
 

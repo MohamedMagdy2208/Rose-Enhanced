@@ -1,5 +1,5 @@
 import { Activity, Crosshair, Target } from "lucide-react";
-import type { ChampionPerformanceRecord, ChampionPerformanceSnapshot } from "@rose-enhanced/contracts";
+import type { ChampionPerformanceRecord, ChampionPerformanceSnapshot } from "@summonerkit/contracts";
 import { EmptyState } from "./EmptyState";
 import { StatusPill } from "./StatusPill";
 import { formatRelativeTime } from "../utils/assets";

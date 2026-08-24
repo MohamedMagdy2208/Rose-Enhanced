@@ -1,6 +1,6 @@
-import { CLIENT_TAB_PROTOCOL_VERSION } from "@rose-enhanced/contracts";
+import { CLIENT_TAB_PROTOCOL_VERSION } from "@summonerkit/contracts";
 
-export const BRIDGE_AUTH_MESSAGE_TYPE = "rose-enhanced.auth";
+export const BRIDGE_AUTH_MESSAGE_TYPE = "summonerkit.auth";
 
 export interface BridgeAuthorization {
   token: string;
@@ -54,7 +54,7 @@ export function receiveBridgeAuthorization(
     };
     const timeoutId = browserWindow.setTimeout(() => {
       cleanup();
-      reject(new Error("The Rose Enhanced client tab did not receive bridge authorization."));
+      reject(new Error("The SummonerKit client tab did not receive bridge authorization."));
     }, timeoutMs);
 
     browserWindow.addEventListener("message", handleMessage);
@@ -63,6 +63,6 @@ export function receiveBridgeAuthorization(
 
 export function assertCurrentProtocol(authorization: BridgeAuthorization): void {
   if (authorization.protocolVersion !== CLIENT_TAB_PROTOCOL_VERSION) {
-    throw new Error("The Rose Enhanced client integration is outdated. Repair it from the desktop app; League will reload automatically when safe.");
+    throw new Error("The SummonerKit client integration is outdated. Repair it from the desktop app; League will reload automatically when safe.");
   }
 }

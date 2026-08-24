@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { createDefaultSettings } from "@rose-enhanced/core";
+import { createDefaultSettings } from "@summonerkit/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CompanionStore } from "./companion-store";
 import { LeagueSessionService } from "./league-session-service";
@@ -21,7 +21,7 @@ class FakeLcu extends EventEmitter {
     if (endpoint.includes("pickable")) return [103, 238];
     if (endpoint.includes("bannable")) return [103, 238];
     if (endpoint.endsWith("summoner-spells.json")) return [{ id: 4, name: "Flash" }, { id: 14, name: "Ignite" }];
-    if (endpoint === "/lol-perks/v1/pages") return [{ id: 7, name: "Rose Enhanced · Mid", current: true }];
+    if (endpoint === "/lol-perks/v1/pages") return [{ id: 7, name: "SummonerKit · Mid", current: true }];
     return null;
   });
 }

@@ -9,7 +9,7 @@ import {
   Sparkles,
   WifiOff,
 } from "lucide-react";
-import type { CompanionSnapshot, CompanionCommand } from "@rose-enhanced/contracts";
+import type { CompanionSnapshot, CompanionCommand } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
 import { StatusPill } from "../components/StatusPill";
 import { formatRelativeTime } from "../utils/assets";
@@ -53,7 +53,7 @@ export function DashboardPage({
           <span className="connection-banner__icon" aria-hidden="true"><WifiOff size={20} /></span>
           <div>
             <strong>Waiting for the League client</strong>
-            <p>{connection.lastError ?? "Open League of Legends and sign in. Rose Enhanced reconnects automatically."}</p>
+            <p>{connection.lastError ?? "Open League of Legends and sign in. SummonerKit reconnects automatically."}</p>
           </div>
           <StatusPill tone={connection.status === "degraded" ? "warning" : "neutral"}>
             {connection.status}

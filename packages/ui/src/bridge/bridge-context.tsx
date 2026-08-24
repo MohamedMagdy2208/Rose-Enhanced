@@ -11,7 +11,7 @@ import type {
   CompanionBridge,
   CompanionCommand,
   CompanionSnapshot,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 export interface BridgeStore {
   getSnapshot: () => CompanionSnapshot;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BridgeListener, CompanionBridge, CompanionSnapshot } from "@rose-enhanced/contracts";
+import type { BridgeListener, CompanionBridge, CompanionSnapshot } from "@summonerkit/contracts";
 import { emptySnapshot } from "./empty-snapshot";
 import { createBridgeStore } from "./bridge-context";
 

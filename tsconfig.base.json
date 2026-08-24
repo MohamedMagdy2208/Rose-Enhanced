@@ -5,10 +5,10 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@rose-enhanced/contracts": ["./packages/contracts/src/index.ts"],
-      "@rose-enhanced/core": ["./packages/core/src/index.ts"],
-      "@rose-enhanced/remote": ["./packages/remote/src/index.ts"],
-      "@rose-enhanced/ui": ["./packages/ui/src/index.ts"]
+      "@summonerkit/contracts": ["./packages/contracts/src/index.ts"],
+      "@summonerkit/core": ["./packages/core/src/index.ts"],
+      "@summonerkit/remote": ["./packages/remote/src/index.ts"],
+      "@summonerkit/ui": ["./packages/ui/src/index.ts"]
     },
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,

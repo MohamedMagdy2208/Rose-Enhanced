@@ -1,5 +1,5 @@
-import type { CompanionCommand, CommandResult } from "@rose-enhanced/contracts";
-import { companionCommandSchema } from "@rose-enhanced/contracts";
+import type { CompanionCommand, CommandResult } from "@summonerkit/contracts";
+import { companionCommandSchema } from "@summonerkit/contracts";
 import type { AutomationService } from "./automation-service";
 import type { AramService } from "./aram-service";
 import type { CollectionService } from "./collection-service";
@@ -216,7 +216,7 @@ export class CommandRouter {
     if (command.type === "collection.refresh") return "Collection synchronized.";
     if (command.type === "insights.refreshRunes") return "Rune recommendations refreshed.";
     if (command.type === "insights.refreshPerformance") return "Champion performance refreshed.";
-    if (command.type === "runes.applyRecommendation") return "Recommended runes applied to a Rose Enhanced page.";
+    if (command.type === "runes.applyRecommendation") return "Recommended runes applied to a SummonerKit page.";
     if (command.type === "collection.toggleFavorite") return "Favorite updated.";
     if (command.type === "collection.toggleWishlist") return "Wishlist updated.";
     if (command.type === "profile.save") return "Automation profile saved.";

@@ -1,4 +1,4 @@
-import type { CompanionCommand } from "@rose-enhanced/contracts";
+import type { CompanionCommand } from "@summonerkit/contracts";
 
 const clientSurfaceCommands = new Set<CompanionCommand["type"]>([
   "desktop.open",

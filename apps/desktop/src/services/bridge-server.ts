@@ -5,7 +5,7 @@ import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { app } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { CompanionCommand, CommandResult } from "@rose-enhanced/contracts";
+import type { CompanionCommand, CommandResult } from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { LcuClient } from "./lcu/lcu-client";
 import type { AppLogger } from "./logger";
@@ -54,7 +54,7 @@ export class BridgeServer {
   private readonly webSockets: WebSocketServer;
 
   constructor(private readonly dependencies: BridgeServerDependencies) {
-    this.port = Number(process.env.ROSE_ENHANCED_BRIDGE_PORT ?? 17_654);
+    this.port = Number(process.env.SUMMONERKIT_BRIDGE_PORT ?? 17_654);
     this.server = http.createServer((request, response) => void this.handleRequest(request, response));
     this.webSockets = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024 });
     this.server.on("upgrade", (request, socket, head) => this.handleUpgrade(request, socket, head));

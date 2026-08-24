@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rose Enhanced Pengu integration harness</title>
+    <title>SummonerKit Pengu integration harness</title>
   </head>
   <body>
     <nav class="right-nav-menu" aria-label="League navigation"></nav>
@@ -54,23 +54,23 @@
           );
 
           window.setTimeout(() => {
-            const entry = document.getElementById("rose-enhanced-settings-entry");
+            const entry = document.getElementById("summonerkit-settings-entry");
             checks.entryInjected = Boolean(entry);
             checks.dedicatedNavigation = Boolean(document.getElementById(
-              "rose-enhanced-navigation-item",
+              "summonerkit-navigation-item",
             ));
             entry?.click();
             checks.overlayOpened = Boolean(
-              document.getElementById("rose-enhanced-client-overlay"),
+              document.getElementById("summonerkit-client-overlay"),
             );
-            document.querySelector(".rose-enhanced-close")?.click();
+            document.querySelector(".summonerkit-close")?.click();
 
             window.setTimeout(() => {
               checks.rosePanelRestored = Boolean(
                 document.getElementById("rose-settings-panel"),
               );
               checks.entryRestored = Boolean(
-                document.getElementById("rose-enhanced-settings-entry"),
+                document.getElementById("summonerkit-settings-entry"),
               );
               finish(checks);
             }, 50);
@@ -78,18 +78,18 @@
         } else {
           window.setTimeout(() => {
             const enhancedNavigation = document.getElementById(
-              "rose-enhanced-navigation-item",
+              "summonerkit-navigation-item",
             );
             checks.navigationInjected =
               enhancedNavigation?.getAttribute("aria-label") ===
-              "Open Rose Enhanced";
+              "Open SummonerKit";
             enhancedNavigation?.click();
             checks.overlayOpened = Boolean(
-              document.getElementById("rose-enhanced-client-overlay"),
+              document.getElementById("summonerkit-client-overlay"),
             );
-            document.querySelector(".rose-enhanced-close")?.click();
+            document.querySelector(".summonerkit-close")?.click();
             checks.overlayClosed = !document.getElementById(
-              "rose-enhanced-client-overlay",
+              "summonerkit-client-overlay",
             );
             checks.focusRestored = document.activeElement === enhancedNavigation;
             finish(checks);

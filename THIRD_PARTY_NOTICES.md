@@ -1,6 +1,10 @@
 # Third-party notices
 
-Rose Enhanced is a fresh implementation. It combines product ideas rather than
+SummonerKit original code, documentation, and original brand assets are
+Copyright © 2026 Mohamed Magdy and are licensed under the repository's MIT
+License.
+
+SummonerKit is a fresh implementation. It combines product ideas rather than
 copying the referenced repositories.
 
 ## MIT-licensed references
@@ -17,7 +21,7 @@ Their licenses and copyright notices remain with their respective projects.
 - Deceive — <https://github.com/molenzwiebel/deceive>
 - lol-auto-accept — <https://github.com/jasonwu1994/lol-auto-accept>
 
-No source or binary from these applications is incorporated into Rose Enhanced.
+No source or binary from these applications is incorporated into SummonerKit.
 The desktop app can detect and launch a user-installed Deceive executable as an
 independent process.
 

@@ -6,7 +6,7 @@ function redactString(value: string): string {
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED]")
     .replace(/riot:[^@\s]+/gi, "riot:[REDACTED]")
     .replace(/(--remoting-auth-token=)([^\s]+)/gi, "$1[REDACTED]")
-    .replace(/(rose-enhanced-(?:auth|session)\.)([A-Za-z0-9_-]+)/gi, "$1[REDACTED]")
+    .replace(/(summonerkit-(?:auth|session)\.)([A-Za-z0-9_-]+)/gi, "$1[REDACTED]")
     .replace(/([?&#](?:token|secret|password)=)([^&\s]+)/gi, "$1[REDACTED]");
 }
 

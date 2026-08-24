@@ -6,9 +6,9 @@ import type {
   RemoteCompanionSnapshot,
   RemoteDevice,
   RemotePairingOffer,
-} from "@rose-enhanced/contracts";
-import { companionCommandSchema } from "@rose-enhanced/contracts";
-import { deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, verifyPairingProof, type EncryptedEnvelope } from "@rose-enhanced/remote";
+} from "@summonerkit/contracts";
+import { companionCommandSchema } from "@summonerkit/contracts";
+import { deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, verifyPairingProof, type EncryptedEnvelope } from "@summonerkit/remote";
 import QRCode from "qrcode";
 import WebSocket from "ws";
 import { z } from "zod";
@@ -66,9 +66,9 @@ interface ActivePairing {
 }
 
 export class RemoteService {
-  private readonly relayUrl = process.env.ROSE_ENHANCED_RELAY_URL?.replace(/\/$/u, "") ?? null;
-  private readonly mobileUrl = process.env.ROSE_ENHANCED_MOBILE_URL ?? null;
-  private readonly adminSecret = process.env.ROSE_ENHANCED_RELAY_ADMIN_SECRET ?? null;
+  private readonly relayUrl = process.env.SUMMONERKIT_RELAY_URL?.replace(/\/$/u, "") ?? null;
+  private readonly mobileUrl = process.env.SUMMONERKIT_MOBILE_URL ?? null;
+  private readonly adminSecret = process.env.SUMMONERKIT_RELAY_ADMIN_SECRET ?? null;
   private active: ActivePairing | null = null;
   private outbound = Promise.resolve();
 
@@ -94,9 +94,9 @@ export class RemoteService {
 
   private configurationError(): string {
     if (!this.relayUrl || !this.mobileUrl || !this.adminSecret) {
-      return "Set ROSE_ENHANCED_RELAY_URL, ROSE_ENHANCED_MOBILE_URL, and ROSE_ENHANCED_RELAY_ADMIN_SECRET.";
+      return "Set SUMMONERKIT_RELAY_URL, SUMMONERKIT_MOBILE_URL, and SUMMONERKIT_RELAY_ADMIN_SECRET.";
     }
-    if (this.adminSecret.length < 32) return "ROSE_ENHANCED_RELAY_ADMIN_SECRET must contain at least 32 characters.";
+    if (this.adminSecret.length < 32) return "SUMMONERKIT_RELAY_ADMIN_SECRET must contain at least 32 characters.";
     return "The relay URL must use HTTPS (HTTP is allowed only for localhost development).";
   }
 
@@ -115,7 +115,7 @@ export class RemoteService {
       try {
         const response = await fetch(`${relayUrl}/rooms`, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-rose-admin": adminSecret },
+          headers: { "content-type": "application/json", "x-summonerkit-admin": adminSecret },
           body: JSON.stringify({ desktopPublicKey: keys.publicKey, expiresInSeconds: 180 }),
         });
         if (!response.ok) throw new Error(`The mobile relay rejected room creation (${response.status}).`);

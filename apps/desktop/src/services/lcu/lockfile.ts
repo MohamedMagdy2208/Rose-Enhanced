@@ -35,7 +35,7 @@ async function directoryWithLockfile(candidate: string): Promise<string | null> 
 }
 
 export async function discoverLeaguePath(configuredPath: string | null): Promise<string | null> {
-  const explicitPath = process.env.ROSE_ENHANCED_LEAGUE_PATH ?? configuredPath;
+  const explicitPath = process.env.SUMMONERKIT_LEAGUE_PATH ?? configuredPath;
   if (explicitPath) {
     return directoryWithLockfile(explicitPath);
   }

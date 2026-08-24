@@ -2,7 +2,7 @@ import type {
   ChampionSelectParticipant,
   RemoteChampionRecord,
   RemoteCompanionSnapshot,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 export function championName(champions: RemoteChampionRecord[], championId: number | null): string {
   if (!championId) return "Waiting";

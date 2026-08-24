@@ -1,5 +1,5 @@
 import { Bookmark, Check, Gem, Heart, LockKeyhole, Sparkles } from "lucide-react";
-import type { SkinRecord } from "@rose-enhanced/contracts";
+import type { SkinRecord } from "@summonerkit/contracts";
 import { lcuAssetUrl } from "../utils/assets";
 
 export function SkinCard({

@@ -11,16 +11,19 @@ const windowsIcon = path.resolve(__dirname, "assets", "icon.ico");
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    executableName: "Rose Enhanced",
+    executableName: "SummonerKit",
     icon: windowsIcon,
     extraResource: ["../client-tab/dist", "../client-tab/pengu", "assets"],
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({
-      name: "rose_enhanced",
-      setupExe: "Rose-Enhanced-Setup.exe",
+      name: "summonerkit",
+      setupExe: "SummonerKit-win32-x64-Setup.exe",
       setupIcon: windowsIcon,
+      authors: "Mohamed Magdy",
+      copyright: "Copyright © 2026 Mohamed Magdy",
+      description: "A privacy-first Windows companion for League of Legends.",
     }),
     new MakerZIP({}, ["win32"]),
   ],

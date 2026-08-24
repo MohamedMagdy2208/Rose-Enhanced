@@ -1,6 +1,6 @@
 import { Dices, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { CompanionCommand, RemoteCompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { championName, timerSeconds } from "../mobile-view";
 import { ChampionPicker } from "./ChampionPicker";
 import { LoadoutPanel } from "./LoadoutPanel";

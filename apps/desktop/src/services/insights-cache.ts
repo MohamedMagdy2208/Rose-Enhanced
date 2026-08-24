@@ -4,7 +4,7 @@ import { app } from "electron";
 import type {
   ChampionPerformanceSnapshot,
   RuneRecommendationsSnapshot,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import type { AppLogger } from "./logger";
 
 interface InsightsCacheDocument {

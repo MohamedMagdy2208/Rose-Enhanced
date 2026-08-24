@@ -1,5 +1,5 @@
-import type { LcuConnectionState } from "@rose-enhanced/contracts";
-import { createDefaultSettings } from "@rose-enhanced/core";
+import type { LcuConnectionState } from "@summonerkit/contracts";
+import { createDefaultSettings } from "@summonerkit/core";
 import { describe, expect, it } from "vitest";
 import { ClientTabActivationService, clientUxReloadDisposition } from "./client-tab-activation";
 import { CompanionStore } from "./companion-store";

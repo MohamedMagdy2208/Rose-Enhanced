@@ -17,7 +17,7 @@ describe("redactSensitive", () => {
   it.each([
     ["Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature", "Authorization: Bearer [REDACTED]"],
     ["wss://relay/socket#secret=pairing-secret", "wss://relay/socket#secret=[REDACTED]"],
-    ["rose-enhanced-auth.token_123-abc", "rose-enhanced-auth.[REDACTED]"],
+    ["summonerkit-auth.token_123-abc", "summonerkit-auth.[REDACTED]"],
   ])("redacts secrets embedded in log text", (source, expected) => {
     expect(redactSensitive(source)).toBe(expected);
   });

@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { remoteTokenFromProtocols, remoteWebSocketProtocol } from "@rose-enhanced/remote";
+import { remoteTokenFromProtocols, remoteWebSocketProtocol } from "@summonerkit/remote";
 
 interface Env {
   ROOMS: DurableObjectNamespace<PairingRoom>;
@@ -134,7 +134,7 @@ function preflightResponse(cors: Record<string, string>): Response {
     headers: {
       ...responseSecurityHeaders,
       ...cors,
-      "access-control-allow-headers": "content-type,x-rose-admin",
+      "access-control-allow-headers": "content-type,x-summonerkit-admin",
       "access-control-allow-methods": "POST,GET,OPTIONS",
     },
   });
@@ -144,7 +144,7 @@ function relayAdminError(request: Request, env: Env, cors: Record<string, string
   if (!env.PAIRING_ADMIN_SECRET || env.PAIRING_ADMIN_SECRET.length < 32) {
     return json({ error: "Relay administrator secret is not securely configured." }, 503, cors);
   }
-  const suppliedSecret = request.headers.get("x-rose-admin") ?? "";
+  const suppliedSecret = request.headers.get("x-summonerkit-admin") ?? "";
   return fixedTimeEqual(suppliedSecret, env.PAIRING_ADMIN_SECRET)
     ? null
     : json({ error: "Unauthorized" }, 401, cors);

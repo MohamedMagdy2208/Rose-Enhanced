@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Copy, KeyRound, LockKeyhole, QrCode, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
-import type { CompanionBridge, CompanionCommand, CompanionSnapshot, RemotePairingOffer } from "@rose-enhanced/contracts";
+import type { CompanionBridge, CompanionCommand, CompanionSnapshot, RemotePairingOffer } from "@summonerkit/contracts";
 import { StatusPill } from "../components/StatusPill";
 import { formatRelativeTime } from "../utils/assets";
 
@@ -44,20 +44,20 @@ export function MobileControlPage({
     <div className="page remote-page">
       <header className="page-header page-header--split">
         <div><p className="eyebrow">Encrypted mobile control</p><h1>Queue and champion select, securely on your phone.</h1><p className="page-lede">Start the current lobby queue, answer ready checks, follow the draft, and choose champions, spells, runes, owned skins, or ARAM swaps. The relay routes ciphertext it cannot read, and the desktop validates every command.</p></div>
-        <StatusPill tone={snapshot.remote.status === "connected" ? "positive" : snapshot.remote.status === "error" ? "danger" : snapshot.remote.relayConfigured ? "rose" : "neutral"}>{snapshot.remote.status}</StatusPill>
+        <StatusPill tone={snapshot.remote.status === "connected" ? "positive" : snapshot.remote.status === "error" ? "danger" : snapshot.remote.relayConfigured ? "accent" : "neutral"}>{snapshot.remote.status}</StatusPill>
       </header>
 
       {!snapshot.remote.relayConfigured ? (
         <section className="remote-configuration" role="status">
           <KeyRound size={22} aria-hidden="true" />
-          <div><h2>Relay configuration required</h2><p>{snapshot.remote.lastError}</p><code>ROSE_ENHANCED_RELAY_URL · ROSE_ENHANCED_MOBILE_URL · ROSE_ENHANCED_RELAY_ADMIN_SECRET</code></div>
+          <div><h2>Relay configuration required</h2><p>{snapshot.remote.lastError}</p><code>SUMMONERKIT_RELAY_URL · SUMMONERKIT_MOBILE_URL · SUMMONERKIT_RELAY_ADMIN_SECRET</code></div>
         </section>
       ) : (
         <section className="pairing-panel">
-          <div className="pairing-panel__copy"><p className="eyebrow">Add a device</p><h2>Scan once, then the secret disappears</h2><p>Create a three-minute pairing code. Rose Enhanced does not save the one-time secret or session keys.</p><button className="button button--primary" type="button" disabled={busy} onClick={() => void createPairing()}><QrCode size={16} /> {busy ? "Creating…" : offer ? "Replace pairing code" : "Create pairing code"}</button></div>
+          <div className="pairing-panel__copy"><p className="eyebrow">Add a device</p><h2>Scan once, then the secret disappears</h2><p>Create a three-minute pairing code. SummonerKit does not save the one-time secret or session keys.</p><button className="button button--primary" type="button" disabled={busy} onClick={() => void createPairing()}><QrCode size={16} /> {busy ? "Creating…" : offer ? "Replace pairing code" : "Create pairing code"}</button></div>
           {offer ? (
             <div className="pairing-code">
-              <img src={offer.qrDataUrl} alt="One-time Rose Enhanced mobile pairing QR code" />
+              <img src={offer.qrDataUrl} alt="One-time SummonerKit mobile pairing QR code" />
               <p>Expires {formatRelativeTime(offer.expiresAt)}</p>
               <button className="text-button" type="button" onClick={() => void copyLink()}><Copy size={14} /> Copy private link</button>
             </div>

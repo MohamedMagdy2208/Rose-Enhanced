@@ -3,8 +3,8 @@ import {
   type CommandResult,
   type CompanionCommand,
   type RemoteCompanionSnapshot,
-} from "@rose-enhanced/contracts";
-import { createPairingProof, deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, type EncryptedEnvelope } from "@rose-enhanced/remote";
+} from "@summonerkit/contracts";
+import { createPairingProof, deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, type EncryptedEnvelope } from "@summonerkit/remote";
 import { z } from "zod";
 
 const claimResponseSchema = z.object({
@@ -113,7 +113,7 @@ export class MobileRemote {
   async dispatch(command: CompanionCommand): Promise<CommandResult> {
     const safeCommand = companionCommandSchema.parse(command);
     if (!this.channel || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error("This phone is not connected to Rose Enhanced.");
+      throw new Error("This phone is not connected to SummonerKit.");
     }
     const id = crypto.randomUUID();
     const response = new Promise<CommandResult>((resolve, reject) => {

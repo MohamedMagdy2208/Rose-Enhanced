@@ -1,5 +1,5 @@
 import { Download, FileWarning, LockKeyhole, RefreshCw, ServerCog } from "lucide-react";
-import type { CompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionSnapshot } from "@summonerkit/contracts";
 import { useCompanionBridge } from "../bridge/bridge-context";
 import { StatusPill } from "../components/StatusPill";
 
@@ -13,7 +13,7 @@ export function DiagnosticsPage({ snapshot }: { snapshot: CompanionSnapshot }) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `rose-enhanced-diagnostics-${Date.now()}.json`;
+    anchor.download = `summonerkit-diagnostics-${Date.now()}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };

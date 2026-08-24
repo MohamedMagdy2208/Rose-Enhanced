@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app } from "electron";
-import type { CollectionSnapshot } from "@rose-enhanced/contracts";
+import type { CollectionSnapshot } from "@summonerkit/contracts";
 import type { AppLogger } from "./logger";
 
 interface CollectionCacheDocument {

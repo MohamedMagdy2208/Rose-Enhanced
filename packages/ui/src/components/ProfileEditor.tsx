@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
-import type { AutomationProfile, CompanionCommand } from "@rose-enhanced/contracts";
+import type { AutomationProfile, CompanionCommand } from "@summonerkit/contracts";
 
 const spells = [
   { id: 4, name: "Flash" },
@@ -97,7 +97,7 @@ export function ProfileEditor({
 
       <details className="rune-details">
         <summary>Rune preset</summary>
-        <p>Rose Enhanced updates only its own rune page and never deletes a page you created.</p>
+        <p>SummonerKit updates only its own rune page and never deletes a page you created.</p>
         <label className="toggle-inline"><input type="checkbox" checked={draft.runePreset !== null} onChange={(event) => setDraft({ ...draft, runePreset: event.target.checked ? { primaryStyleId: 8000, subStyleId: 8100, selectedPerkIds: [] } : null })} /> Configure a rune preset</label>
         {draft.runePreset ? <div className="form-grid form-grid--nested">
           <label className="field"><span>Primary style ID</span><input type="number" value={draft.runePreset.primaryStyleId} onChange={(event) => setDraft({ ...draft, runePreset: { ...draft.runePreset!, primaryStyleId: Number(event.target.value) } })} /></label>

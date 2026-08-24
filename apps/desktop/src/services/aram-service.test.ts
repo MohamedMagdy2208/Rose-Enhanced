@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { createDefaultSettings, type PersistedSettings } from "@rose-enhanced/core";
+import { createDefaultSettings, type PersistedSettings } from "@summonerkit/core";
 import { describe, expect, it, vi } from "vitest";
 import { AramService } from "./aram-service";
 import { CompanionStore } from "./companion-store";

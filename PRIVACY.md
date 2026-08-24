@@ -1,6 +1,6 @@
 # Privacy
 
-Rose Enhanced has no telemetry and no advertising SDKs.
+SummonerKit has no telemetry and no advertising SDKs.
 
 Collection data, profiles, favorites, diagnostics, and paired-device metadata
 stay on the user's computer. LCU credentials are held only in memory and are

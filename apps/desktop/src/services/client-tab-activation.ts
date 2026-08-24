@@ -1,4 +1,4 @@
-import type { LcuConnectionState } from "@rose-enhanced/contracts";
+import type { LcuConnectionState } from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { AppLogger } from "./logger";
 import type { LcuClient } from "./lcu/lcu-client";

@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
-import { createDefaultSettings, type PersistedSettings } from "@rose-enhanced/core";
-import { automationProfileSchema } from "@rose-enhanced/contracts";
+import { createDefaultSettings, type PersistedSettings } from "@summonerkit/core";
+import { automationProfileSchema } from "@summonerkit/contracts";
 import { z } from "zod";
 import type { AppLogger } from "./logger";
 

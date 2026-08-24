@@ -1,6 +1,6 @@
 # Rune recommendation feed v1
 
-Rose Enhanced consumes aggregated rune recommendations from a backend. It does
+SummonerKit consumes aggregated rune recommendations from a backend. It does
 not scrape build websites and does not ship a Riot API key inside Electron.
 
 ## Data pipeline responsibilities
@@ -22,7 +22,7 @@ The feed publisher should:
    fallback, and serve the document over HTTPS with a stable URL.
 
 The `combined` audience should be calculated by the publisher, with its
-weighting documented. Rose Enhanced does not silently merge unrelated samples
+weighting documented. SummonerKit does not silently merge unrelated samples
 on the client.
 
 ## JSON contract
@@ -64,8 +64,8 @@ Validation rules:
 Configure the desktop consumer with:
 
 ```text
-ROSE_ENHANCED_BUILD_DATA_URL=https://data.example.com/runes-v1.json
-ROSE_ENHANCED_BUILD_DATA_TOKEN=optional-private-feed-token
+SUMMONERKIT_BUILD_DATA_URL=https://data.example.com/runes-v1.json
+SUMMONERKIT_BUILD_DATA_TOKEN=optional-private-feed-token
 ```
 
 The bearer token is optional. It is read only by the Electron main process and

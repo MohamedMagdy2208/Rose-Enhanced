@@ -2,7 +2,7 @@ import type {
   AutomationProfile,
   AutomationSettings,
   RemoteDevice,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 export interface PersistedSettings {
   schemaVersion: 2;

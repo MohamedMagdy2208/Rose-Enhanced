@@ -1,6 +1,6 @@
 {
-  "name": "@rose-enhanced/relay",
-  "version": "0.1.0",
+  "name": "@summonerkit/relay",
+  "version": "0.9.0-beta.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@rose-enhanced/remote": "0.1.0"
+    "@summonerkit/remote": "*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260822.1",

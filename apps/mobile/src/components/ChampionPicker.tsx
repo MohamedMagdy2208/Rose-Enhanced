@@ -1,6 +1,6 @@
 import { Eye, Lock, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { CompanionCommand, RemoteCompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { alliedIntentIds, availableChampionIds } from "../mobile-view";
 
 interface ChampionPickerProps {

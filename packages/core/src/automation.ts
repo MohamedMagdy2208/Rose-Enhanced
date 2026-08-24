@@ -2,7 +2,7 @@ import type {
   AutomationDecision,
   AutomationProfile,
   AutomationSettings,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 
 export interface ChampSelectAction {
   id: number;

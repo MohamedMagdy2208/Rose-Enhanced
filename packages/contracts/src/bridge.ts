@@ -1,5 +1,6 @@
 import type {
   AutomationProfile,
+  AppUpdateState,
   CompanionSnapshot,
   DiagnosticReport,
   RemotePairingOffer,
@@ -19,5 +20,8 @@ export interface CompanionBridge {
   saveProfile(profile: AutomationProfile): Promise<CommandResult>;
   exportDiagnostics(): Promise<DiagnosticReport>;
   createRemotePairing(): Promise<RemotePairingOffer>;
+  getUpdateState?(): Promise<AppUpdateState>;
+  checkForUpdates?(): Promise<AppUpdateState>;
+  restartToUpdate?(): Promise<void>;
   subscribe(listener: BridgeListener): () => void;
 }

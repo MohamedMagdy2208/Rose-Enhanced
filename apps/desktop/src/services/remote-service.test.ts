@@ -1,5 +1,5 @@
-import type { CompanionCommand } from "@rose-enhanced/contracts";
-import { createDefaultSettings } from "@rose-enhanced/core";
+import type { CompanionCommand } from "@summonerkit/contracts";
+import { createDefaultSettings } from "@summonerkit/core";
 import { describe, expect, it } from "vitest";
 import { CompanionStore } from "./companion-store";
 import { isRemoteCommandAllowed, remoteSnapshot } from "./remote-service";

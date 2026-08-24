@@ -16,6 +16,8 @@
   WebSQL and webviews disabled, an in-memory session partition, a restrictive
   Content Security Policy, denied permissions, and blocked navigation/popups.
 - External links are limited to the GitHub and Riot hosts used by the UI.
+- The updater uses a fixed `update.electronjs.org/MohamedMagdy2208/SummonerKit`
+  feed. Renderer code cannot replace the feed URL.
 - Privileged IPC accepts messages only from the current top-level renderer
   frame. Runtime schemas validate commands again in the main process.
 - Packaged builds disable `ELECTRON_RUN_AS_NODE`, Node options, and CLI inspect;
@@ -63,7 +65,7 @@
   enforce a 2 MiB response limit, and pass strict versioned runtime validation.
 - Feed requests contain no account identifier or match history, and an optional
   bearer token remains exclusively in the Electron main process.
-- Applying recommended runes can update or create only a named Rose Enhanced
+- Applying recommended runes can update or create only a named SummonerKit
   page. The application never deletes a user rune page to make room.
 - Local match history is reduced to aggregate champion metrics in memory. Raw
   matches and player identifiers are not stored in the analytics cache.
@@ -99,4 +101,6 @@ LCU passwords, Riot IDs, PUUIDs, access tokens, or unredacted logs.
 ## Release policy
 
 Stable Windows releases must be code-signed. Development builds are clearly
-marked as unsigned and do not silently update.
+marked as unsigned and do not silently update. Update checks are user-initiated;
+downloaded stable updates wait for an explicit **Restart to install** action.
+Portable builds do not have Squirrel's updater and remain manual downloads.

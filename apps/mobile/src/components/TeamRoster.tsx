@@ -1,4 +1,4 @@
-import type { ChampionSelectParticipant, RemoteChampionRecord } from "@rose-enhanced/contracts";
+import type { ChampionSelectParticipant, RemoteChampionRecord } from "@summonerkit/contracts";
 import { championName, participantChampionId } from "../mobile-view";
 
 interface TeamRosterProps {

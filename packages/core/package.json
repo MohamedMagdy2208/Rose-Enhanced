@@ -1,6 +1,6 @@
 {
-  "name": "@rose-enhanced/core",
-  "version": "0.1.0",
+  "name": "@summonerkit/core",
+  "version": "0.9.0-beta.1",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,6 +13,6 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@rose-enhanced/contracts": "0.1.0"
+    "@summonerkit/contracts": "*"
   }
 }

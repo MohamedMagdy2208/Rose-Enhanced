@@ -276,7 +276,7 @@ export interface RunePageOption {
   id: number;
   name: string;
   current: boolean;
-  roseManaged: boolean;
+  summonerKitManaged: boolean;
 }
 
 export interface ChampionSelectControlState {
@@ -452,4 +452,23 @@ export interface DiagnosticReport {
   platform: string;
   snapshot: CompanionSnapshot;
   recentLogs: string[];
+}
+
+export type AppUpdateStatus =
+  | "unavailable"
+  | "idle"
+  | "checking"
+  | "downloading"
+  | "ready"
+  | "current"
+  | "error";
+
+export interface AppUpdateState {
+  status: AppUpdateStatus;
+  currentVersion: string;
+  availableVersion: string | null;
+  checkedAt: string | null;
+  message: string;
+  canCheck: boolean;
+  canRestart: boolean;
 }

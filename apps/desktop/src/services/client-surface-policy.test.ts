@@ -1,4 +1,4 @@
-import type { CompanionCommand } from "@rose-enhanced/contracts";
+import type { CompanionCommand } from "@summonerkit/contracts";
 import { describe, expect, it } from "vitest";
 import { isClientSurfaceCommandAllowed } from "./client-surface-policy";
 

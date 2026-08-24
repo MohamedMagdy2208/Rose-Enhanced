@@ -3,14 +3,14 @@ import type {
   AutomationAuditEvent,
   AutomationProfile,
   PendingAutomationAction,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import {
   AutomationEngine,
   profileFor,
   type AutomationContext,
   type AutomationEffect,
   type ChampSelectAction,
-} from "@rose-enhanced/core";
+} from "@summonerkit/core";
 import type { CompanionStore } from "./companion-store";
 import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";
@@ -279,7 +279,7 @@ export class AutomationService {
     } catch (error) {
       this.logger.warn("Automation effect failed", { effect: effect.type, error: String(error) });
       this.recordAudit(effect.decision, "failed");
-      this.notify("Rose Enhanced automation", `${effect.decision.action} failed: ${String(error)}`);
+      this.notify("SummonerKit automation", `${effect.decision.action} failed: ${String(error)}`);
       throw error;
     }
   }
@@ -316,7 +316,7 @@ export class AutomationService {
     this.pending.set(action.id, { action, effect, profile });
     this.publishPending();
     this.scheduleEvaluate(20_025);
-    this.notify("Rose Enhanced confirmation", `${action.action}: ${action.reason}`);
+    this.notify("SummonerKit confirmation", `${action.action}: ${action.reason}`);
   }
 
   private expirePending(): void {

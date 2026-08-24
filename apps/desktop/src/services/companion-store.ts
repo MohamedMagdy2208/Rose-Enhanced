@@ -5,8 +5,8 @@ import {
   type CompanionSnapshot,
   type ConnectionDoctorCheck,
   type IntegrationState,
-} from "@rose-enhanced/contracts";
-import type { PersistedSettings } from "@rose-enhanced/core";
+} from "@summonerkit/contracts";
+import type { PersistedSettings } from "@summonerkit/core";
 import { clientUxReloadDisposition } from "./client-tab-activation";
 import { emptyLeagueSessionState } from "./league-session-state";
 

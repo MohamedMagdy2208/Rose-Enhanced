@@ -1,4 +1,4 @@
-const CACHE = "rose-enhanced-mobile-v3";
+const CACHE = "summonerkit-mobile-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["/"])));
@@ -23,7 +23,7 @@ self.addEventListener("fetch", (event) => {
       return response;
     }).catch(async () => (await caches.match(event.request))
       ?? (await caches.match("/"))
-      ?? new Response("Rose Enhanced Remote is offline.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } })));
+      ?? new Response("SummonerKit Remote is offline.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } })));
     return;
   }
   event.respondWith(

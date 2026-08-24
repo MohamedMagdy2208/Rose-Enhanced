@@ -2,7 +2,7 @@ import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { IntegrationId, IntegrationState } from "@rose-enhanced/contracts";
+import type { IntegrationId, IntegrationState } from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";
@@ -90,7 +90,7 @@ export class IntegrationService {
 
   async stop(id: ExternalIntegrationId): Promise<void> {
     const child = this.managed.get(id);
-    if (!child || child.exitCode !== null) throw new Error("Rose Enhanced did not start this process and will not stop it.");
+    if (!child || child.exitCode !== null) throw new Error("SummonerKit did not start this process and will not stop it.");
     child.kill();
     this.managed.delete(id);
     await this.refresh();

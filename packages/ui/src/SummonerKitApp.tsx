@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CompanionBridge, CompanionCommand, CompanionSnapshot } from "@rose-enhanced/contracts";
+import type { CompanionBridge, CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import { AppShell, type AppSurface, type PageId } from "./components/AppShell";
 import { BridgeProvider, useCompanionSnapshot, useCompanionCommand, useCompanionBridge } from "./bridge/bridge-context";
 import { AutomationPage } from "./pages/AutomationPage";
@@ -10,9 +10,10 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { InsightsPage } from "./pages/InsightsPage";
+import { GuideUpdatesPage } from "./pages/GuideUpdatesPage";
 import { MobileControlPage } from "./pages/MobileControlPage";
 
-export function RoseEnhancedApp({ bridge, initialSnapshot, surface = "desktop" }: { bridge: CompanionBridge; initialSnapshot: CompanionSnapshot; surface?: AppSurface }) {
+export function SummonerKitApp({ bridge, initialSnapshot, surface = "desktop" }: { bridge: CompanionBridge; initialSnapshot: CompanionSnapshot; surface?: AppSurface }) {
   return <BridgeProvider bridge={bridge} initialSnapshot={initialSnapshot}><App surface={surface} /></BridgeProvider>;
 }
 
@@ -40,6 +41,7 @@ function App({ surface }: { surface: AppSurface }) {
       {page === "integrations" && surface === "desktop" ? <IntegrationsPage integrations={snapshot.integrations} onCommand={onCommand} /> : null}
       {page === "mobile" && surface === "desktop" ? <MobileControlPage snapshot={snapshot} bridge={bridge} onCommand={onCommand} /> : null}
       {page === "doctor" && surface === "desktop" ? <ConnectionDoctorPage snapshot={snapshot} onCommand={onCommand} /> : null}
+      {page === "guide" && surface === "desktop" ? <GuideUpdatesPage bridge={bridge} /> : null}
       {page === "settings" && surface === "desktop" ? <DiagnosticsPage snapshot={snapshot} /> : null}
     </AppShell>
   );

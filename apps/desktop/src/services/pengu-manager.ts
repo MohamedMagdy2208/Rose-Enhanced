@@ -4,17 +4,24 @@ import { app } from "electron";
 import {
   CLIENT_TAB_PLUGIN_VERSION,
   CLIENT_TAB_PROTOCOL_VERSION,
-} from "@rose-enhanced/contracts";
+} from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { SettingsStore } from "./settings-store";
 import type { AppLogger } from "./logger";
 
 async function exists(candidate: string): Promise<boolean> {
-  try { await access(candidate); return true; } catch { return false; }
+  try {
+    await access(candidate);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 export class PenguManager {
-  private readonly pluginName = "ROSE-Enhanced";
+  private readonly pluginName = "SummonerKit";
+  private readonly legacyPluginName = "ROSE-Enhanced";
 
   constructor(
     private readonly store: CompanionStore,
@@ -58,37 +65,38 @@ export class PenguManager {
     const template = await readFile(templatePath, "utf8");
     const navigationIcon = await readFile(this.navigationIconPath());
     const generated = template
-      .replaceAll("__ROSE_ENHANCED_TOKEN__", this.settings.get().bridgeToken)
-      .replaceAll("__ROSE_ENHANCED_PORT__", process.env.ROSE_ENHANCED_BRIDGE_PORT ?? "17654")
-      .replaceAll("__ROSE_ENHANCED_NAV_ICON__", `data:image/png;base64,${navigationIcon.toString("base64")}`)
-      .replaceAll("__ROSE_ENHANCED_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
-      .replaceAll("__ROSE_ENHANCED_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
+      .replaceAll("__SUMMONERKIT_TOKEN__", this.settings.get().bridgeToken)
+      .replaceAll("__SUMMONERKIT_PORT__", process.env.SUMMONERKIT_BRIDGE_PORT ?? "17654")
+      .replaceAll("__SUMMONERKIT_NAV_ICON__", `data:image/png;base64,${navigationIcon.toString("base64")}`)
+      .replaceAll("__SUMMONERKIT_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
+      .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
     await writeFile(path.join(destination, "index.js"), generated, { encoding: "utf8", mode: 0o600 });
+    await this.removePluginDirectory(pluginRoot, this.legacyPluginName);
     this.store.update((snapshot) => {
       snapshot.clientTab.restartRequired = true;
       snapshot.clientTab.lastRepairAt = new Date().toISOString();
       snapshot.clientTab.lastError = null;
     });
-    this.logger.info("Installed Rose Enhanced client surface", { destination });
+    this.logger.info("Installed SummonerKit client surface", { destination });
     await this.refresh();
   }
 
   async uninstall(): Promise<void> {
-    const pluginRoot = path.resolve(await this.resolvePluginDirectory());
-    const destination = path.resolve(pluginRoot, this.pluginName);
-    const relative = path.relative(pluginRoot, destination);
-    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-      throw new Error("Refusing to remove an unexpected plugin path.");
-    }
-    await rm(destination, { recursive: true, force: true });
-    this.logger.info("Removed Rose Enhanced client surface", { destination });
+    const pluginRoot = await this.resolvePluginDirectory();
+    await this.removePluginDirectory(pluginRoot, this.pluginName);
+    await this.removePluginDirectory(pluginRoot, this.legacyPluginName);
+    this.logger.info("Removed SummonerKit client surface", { pluginRoot });
     await this.refresh();
   }
 
   async repairIfInstalled(): Promise<void> {
     await this.refresh();
     const state = this.store.getSnapshot().clientTab;
-    if (state.installed && (state.installedPluginVersion !== CLIENT_TAB_PLUGIN_VERSION || state.installedProtocolVersion !== CLIENT_TAB_PROTOCOL_VERSION)) {
+    const pluginRoot = await this.resolvePluginDirectory();
+    const legacyInstalled = await exists(path.join(pluginRoot, this.legacyPluginName, "index.js"));
+    const currentOutdated = state.installed
+      && (state.installedPluginVersion !== CLIENT_TAB_PLUGIN_VERSION || state.installedProtocolVersion !== CLIENT_TAB_PROTOCOL_VERSION);
+    if (legacyInstalled || currentOutdated) {
       try {
         await this.install();
       } catch (error) {
@@ -142,6 +150,16 @@ export class PenguManager {
   private navigationIconPath(): string {
     if (app.isPackaged) return path.join(process.resourcesPath, "assets", "tray-icon.png");
     return path.resolve(app.getAppPath(), "assets", "tray-icon.png");
+  }
+
+  private async removePluginDirectory(pluginRoot: string, pluginName: string): Promise<void> {
+    const resolvedRoot = path.resolve(pluginRoot);
+    const destination = path.resolve(resolvedRoot, pluginName);
+    const relative = path.relative(resolvedRoot, destination);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error("Refusing to remove an unexpected plugin path.");
+    }
+    await rm(destination, { recursive: true, force: true });
   }
 
   private async readInstalledMetadata(pluginPath: string): Promise<{ pluginVersion: string | null; protocolVersion: number | null }> {

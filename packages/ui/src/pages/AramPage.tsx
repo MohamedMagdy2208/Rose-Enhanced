@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from "react";
 import { Dices, Heart, RefreshCw, Search, Sparkles } from "lucide-react";
-import type { ChampionRecord, CompanionCommand, CompanionSnapshot } from "@rose-enhanced/contracts";
+import type { ChampionRecord, CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
 import { StatusPill } from "../components/StatusPill";
 import { lcuAssetUrl } from "../utils/assets";
@@ -44,7 +44,7 @@ export function AramPage({
       {currentChampion ? <OwnedSkinPicker champion={currentChampion} phase={snapshot.connection.phase} onCommand={onCommand} /> : null}
 
       <section className="aram-favorites" aria-labelledby="aram-favorites-title">
-        <div className="panel__header"><div><p className="eyebrow">Favorite pool</p><h2 id="aram-favorites-title">Champion alerts</h2></div><StatusPill tone="rose">{snapshot.aram.favoriteChampionIds.length} saved</StatusPill></div>
+        <div className="panel__header"><div><p className="eyebrow">Favorite pool</p><h2 id="aram-favorites-title">Champion alerts</h2></div><StatusPill tone="accent">{snapshot.aram.favoriteChampionIds.length} saved</StatusPill></div>
         <label className="search-field"><Search size={17} aria-hidden="true" /><span className="sr-only">Search champions</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search champions" /></label>
         <div className="favorite-champion-grid">
           {champions.map((champion) => {

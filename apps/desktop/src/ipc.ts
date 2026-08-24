@@ -1,24 +1,29 @@
 import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 import type {
   AutomationProfile,
+  AppUpdateState,
   DiagnosticReport,
   DomainEvent,
   RemotePairingOffer,
-} from "@rose-enhanced/contracts";
-import { redactSensitive } from "@rose-enhanced/core";
+} from "@summonerkit/contracts";
+import { redactSensitive } from "@summonerkit/core";
 import type { CommandRouter } from "./services/command-router";
 import type { CompanionStore } from "./services/companion-store";
 import type { AppLogger } from "./services/logger";
 import type { RemoteService } from "./services/remote-service";
+import type { UpdateService } from "./services/update-service";
 import { trustedMainFrame } from "./electron-security";
 
 export const ipcChannels = {
-  getSnapshot: "rose-enhanced:get-snapshot",
-  dispatch: "rose-enhanced:dispatch",
-  saveProfile: "rose-enhanced:save-profile",
-  diagnostics: "rose-enhanced:diagnostics",
-  createRemotePairing: "rose-enhanced:create-remote-pairing",
-  event: "rose-enhanced:event",
+  getSnapshot: "summonerkit:get-snapshot",
+  dispatch: "summonerkit:dispatch",
+  saveProfile: "summonerkit:save-profile",
+  diagnostics: "summonerkit:diagnostics",
+  createRemotePairing: "summonerkit:create-remote-pairing",
+  getUpdateState: "summonerkit:get-update-state",
+  checkForUpdates: "summonerkit:check-for-updates",
+  restartToUpdate: "summonerkit:restart-to-update",
+  event: "summonerkit:event",
 } as const;
 
 interface IpcDependencies {
@@ -26,10 +31,11 @@ interface IpcDependencies {
   store: CompanionStore;
   router: CommandRouter;
   remote: RemoteService;
+  updates: UpdateService;
   logger: AppLogger;
 }
 
-export function registerIpc({ window, store, router, remote, logger }: IpcDependencies): () => void {
+export function registerIpc({ window, store, router, remote, updates, logger }: IpcDependencies): () => void {
   const guard = <T>(event: IpcMainInvokeEvent, callback: () => T): T => {
     if (!trustedMainFrame(event, window.webContents)) throw new Error("Untrusted IPC sender.");
     return callback();
@@ -52,6 +58,15 @@ export function registerIpc({ window, store, router, remote, logger }: IpcDepend
   ipcMain.handle(ipcChannels.createRemotePairing, (event) =>
     guard(event, () => remote.createPairing()) as Promise<RemotePairingOffer>,
   );
+  ipcMain.handle(ipcChannels.getUpdateState, (event) =>
+    guard(event, (): AppUpdateState => updates.getState()),
+  );
+  ipcMain.handle(ipcChannels.checkForUpdates, (event) =>
+    guard(event, () => updates.check()) as Promise<AppUpdateState>,
+  );
+  ipcMain.handle(ipcChannels.restartToUpdate, (event) =>
+    guard(event, () => updates.restart()),
+  );
 
   const publish = (revision: number) => {
     if (window.isDestroyed()) return;
@@ -62,7 +77,7 @@ export function registerIpc({ window, store, router, remote, logger }: IpcDepend
 
   return () => {
     store.off("changed", publish);
-    for (const channel of [ipcChannels.getSnapshot, ipcChannels.dispatch, ipcChannels.saveProfile, ipcChannels.diagnostics, ipcChannels.createRemotePairing]) {
+    for (const channel of [ipcChannels.getSnapshot, ipcChannels.dispatch, ipcChannels.saveProfile, ipcChannels.diagnostics, ipcChannels.createRemotePairing, ipcChannels.getUpdateState, ipcChannels.checkForUpdates, ipcChannels.restartToUpdate]) {
       ipcMain.removeHandler(channel);
     }
   };
