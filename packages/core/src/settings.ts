@@ -5,7 +5,7 @@ import type {
 } from "@summonerkit/contracts";
 
 export interface PersistedSettings {
-  schemaVersion: 2;
+  schemaVersion: 3;
   leaguePath: string | null;
   bridgeToken: string;
   automation: AutomationSettings;
@@ -14,6 +14,11 @@ export interface PersistedSettings {
   wishlist: number[];
   aramFavoriteChampionIds: number[];
   remoteDevices: RemoteDevice[];
+  remoteConfiguration: {
+    relayUrl: string | null;
+    mobileUrl: string | null;
+    adminSecret: string | null;
+  };
   integrationPaths: {
     rose: string | null;
     deceive: string | null;
@@ -38,7 +43,7 @@ export function createDefaultProfile(): AutomationProfile {
 
 export function createDefaultSettings(bridgeToken: string): PersistedSettings {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     leaguePath: null,
     bridgeToken,
     automation: {
@@ -55,6 +60,11 @@ export function createDefaultSettings(bridgeToken: string): PersistedSettings {
     wishlist: [],
     aramFavoriteChampionIds: [],
     remoteDevices: [],
+    remoteConfiguration: {
+      relayUrl: null,
+      mobileUrl: null,
+      adminSecret: null,
+    },
     integrationPaths: {
       rose: null,
       deceive: null,

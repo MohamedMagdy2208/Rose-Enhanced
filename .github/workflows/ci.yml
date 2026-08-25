@@ -25,6 +25,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build --workspace @summonerkit/mobile
       - run: npm run build --workspace @summonerkit/relay
+      - run: npm run build --workspace @summonerkit/data-publisher
 
   windows-prerelease:
     runs-on: windows-latest

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 const championId = z.number().int().positive();
+const championPriority = z.array(championId).max(40).refine(
+  (values) => new Set(values).size === values.length,
+  "Champion priorities cannot contain duplicates.",
+);
 
 export const runePresetSchema = z.object({
   primaryStyleId: z.number().int().positive(),
@@ -13,8 +17,8 @@ export const automationProfileSchema = z.object({
   name: z.string().trim().min(1).max(80),
   queueIds: z.array(z.number().int().nonnegative()).max(50),
   role: z.enum(["default", "top", "jungle", "middle", "bottom", "utility", "aram"]),
-  pickPriority: z.array(championId).max(40),
-  banPriority: z.array(championId).max(40),
+  pickPriority: championPriority,
+  banPriority: championPriority,
   spell1Id: z.number().int().positive().nullable(),
   spell2Id: z.number().int().positive().nullable(),
   runePreset: runePresetSchema.nullable(),
@@ -24,6 +28,7 @@ export const automationProfileSchema = z.object({
 
 export const companionCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("desktop.open") }),
+  z.object({ type: z.literal("presence.set"), availability: z.enum(["online", "away"]) }),
   z.object({ type: z.literal("automation.acknowledgeRisk") }),
   z.object({
     type: z.literal("automation.setMode"),
@@ -37,6 +42,12 @@ export const companionCommandSchema = z.discriminatedUnion("type", [
     enabled: z.boolean(),
   }),
   z.object({ type: z.literal("profile.save"), profile: automationProfileSchema }),
+  z.object({
+    type: z.literal("profile.setChampionPriorities"),
+    profileId: z.string().min(1).max(80),
+    pickPriority: championPriority,
+    banPriority: championPriority,
+  }),
   z.object({ type: z.literal("profile.delete"), profileId: z.string().min(1).max(80) }),
   z.object({ type: z.literal("collection.refresh") }),
   z.object({ type: z.literal("insights.refreshRunes") }),
@@ -81,6 +92,12 @@ export const companionCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("aram.benchSwap"), championId }),
   z.object({ type: z.literal("aram.toggleFavoriteChampion"), championId }),
   z.object({ type: z.literal("remote.revoke"), deviceId: z.string().uuid() }),
+  z.object({
+    type: z.literal("remote.configure"),
+    relayUrl: z.string().url().max(2_048),
+    mobileUrl: z.string().url().max(2_048),
+    adminSecret: z.string().min(32).max(256),
+  }),
 ]);
 
 export type CompanionCommand = z.infer<typeof companionCommandSchema>;

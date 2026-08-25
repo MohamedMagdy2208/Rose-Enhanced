@@ -32,6 +32,7 @@ const unavailableCapabilities = (): CapabilitySet => ({
   champSelect: false,
   runes: false,
   summonerSpells: false,
+  presence: false,
   clientTab: false,
 });
 
@@ -204,12 +205,13 @@ export class LcuClient extends EventEmitter {
         return false;
       }
     };
-    const [championCatalog, skinInventory, lootInventory, runes, summonerSpells] = await Promise.all([
+    const [championCatalog, skinInventory, lootInventory, runes, summonerSpells, presence] = await Promise.all([
       probe("/lol-game-data/assets/v1/champion-summary.json"),
       probe("/lol-inventory/v2/inventory/CHAMPION_SKIN"),
       probe("/lol-loot/v1/player-loot"),
       probe("/lol-perks/v1/pages"),
       probe("/lol-game-data/assets/v1/summoner-spells.json"),
+      probe("/lol-chat/v1/me"),
     ]);
     return {
       championCatalog,
@@ -217,6 +219,7 @@ export class LcuClient extends EventEmitter {
       lootInventory,
       runes,
       summonerSpells,
+      presence,
       readyCheck: true,
       champSelect: true,
       clientTab: false,

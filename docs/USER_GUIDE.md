@@ -69,30 +69,75 @@ destination.
 
 ## Feature guide
 
+### Setup
+
+The first desktop launch opens **Setup**. Choose **Test everything** to verify
+the desktop engine, League connection, collection, client tab, online guidance, and
+mobile relay independently. Optional services do not hide a working League
+connection, and the page links directly to repair or configuration controls.
+
 ### Overview
 
 Shows League connection state, current gameflow phase, collection progress,
 automation status, recent audit events, and shortcuts to major pages.
 
+After the automation risk warning has been acknowledged, each **On** or **Off**
+pill in the Overview automation card is a button. Use it to change that feature
+without leaving the dashboard; the same validation and audit rules as the full
+Automation page still apply.
+
+The dashboard also provides **Online** and **Away** controls when the connected
+League patch exposes its chat-profile endpoint. SummonerKit waits for League to
+confirm each change. Activity-specific states such as in-game presence appear
+as **League managed** rather than being mislabeled. These controls do not
+simulate true Offline; that still requires launching League through a separate
+presence-filtering proxy such as Deceive.
+
+Right-click the SummonerKit icon in the Windows system tray for quick access to
+**Online** and **Away**, individual automation feature checkboxes, automation
+execution mode, and **Disable all automation**. The menu mirrors current app
+state. Presence items are unavailable until League is connected, and automation
+items remain locked until the desktop risk acknowledgement is complete.
+
 ### Collection
 
 - Browse champions, skins, and chromas.
-- Filter owned, unowned, loot, favorites, and wishlist entries.
+- Filter owned, unowned, loot, favorites, duplicates, expiring loot, and
+  wishlist entries.
 - See duplicate shards and permanents even when the skin is already owned.
+- Review duplicate totals, wishlist-and-loot overlap, upcoming expiry, and
+  listed essence value at a glance.
 - Select an owned skin during champion select when the client reports that the
   action is valid.
 
 Loot is read-only. SummonerKit does not craft, reroll, redeem, upgrade, or
 disenchant loot.
 
-### Runes & Performance
+### Coach & Builds
 
-- Rune recommendations appear only when an approved HTTPS feed is configured.
+- Rune and completed-build recommendations use SummonerKit's published
+  aggregate feed by default;
+  local and private deployments can configure another approved HTTPS feed.
 - The page identifies the patch, role, audience, provider, sample size, pick
   rate, and win rate supplied by that feed.
+- In live champion select, **Draft intelligence** ranks up to three valid picks
+  or bans and explains the profile priority, local performance, aggregate
+  evidence, visible team composition, and allied intent it used. Choosing
+  **Hover** remains an explicit user action.
+- Build cards show item combinations and summoner-spell pairs observed together
+  at match completion. They are not an in-game purchase order, and SummonerKit
+  does not write item sets through an undocumented endpoint.
 - Performance metrics are aggregated locally from up to 100 recent completed
   matches and include K/D/A, KDA, farm, kill participation, damage, vision, and
   a role-aware execution score.
+- The page gives each recent match a report-card grade with one strength and one
+  focus area, and identifies comfort, momentum, and practice candidates in the
+  recent champion pool.
+- Match history can show all recent games or one champion, with queue, role,
+  result, and date-window filters plus a recent-form trend.
+- The personalized patch center shows curated feed entries that affect the
+  user's pool. If none are available, it shows whether rune/build evidence is
+  current, stale, or missing for the connected patch.
 
 Applying a recommendation creates or updates only a rune page whose name starts
 with `SummonerKit ·`. User-created pages are never deleted to make room.
@@ -104,10 +149,23 @@ with `SummonerKit ·`. User-created pages are never deleted to make room.
 3. Use **Confirm** to approve each pending action.
 4. Use **Automatic** only after the profile behaves as expected.
 
-Profiles can target queues and assigned roles with ordered picks, bans, backup
-choices, spells, runes, and timing. The audit timeline records why an action
-was planned, skipped, cancelled, completed, or failed. A manual champion change
-cancels the matching automated action.
+Profiles can target named queues and assigned roles with searchable ordered
+picks, bans, backup choices, spells, runes, and timing. The editor previews the
+next decision and reports invalid or incomplete choices before saving. The
+audit timeline records why an action was planned, skipped, cancelled,
+completed, or failed. A manual champion change cancels the matching automated
+action.
+
+For each pick and ban plan, add the primary champion first and then add backups
+in the order they should be tried. At your active action SummonerKit skips
+champions that are already picked, banned, unavailable, or protected by a
+teammate's intent. If an automated hover becomes invalid before lock-in, the
+engine revalidates the plan and moves to the next backup. The audit entry names
+the chosen champion and explains every earlier choice it skipped.
+
+The ordered champion plan can be edited from **Automation** in either the
+desktop app or the Rose client tab. Queue, role, spells, runes, timing, risk
+acknowledgement, and execution-mode changes remain desktop-only.
 
 ### ARAM
 
@@ -123,16 +181,31 @@ It does not bundle or download them. It stops only processes that it started.
 ### Mobile Control
 
 Mobile pairing remains unavailable until the Cloudflare relay, mobile PWA, and
-desktop relay secret are configured. After configuration:
+desktop relay secret are configured. The repository owner can deploy the relay
+with `.github/workflows/relay.yml`; it requires Cloudflare API credentials and
+`PAIRING_ADMIN_SECRET` as GitHub Actions secrets. Then open **Mobile Control**,
+paste the Worker and PWA URLs, and enter the same administrator secret. Windows
+encrypts that secret before it is saved. After configuration:
+
+Before saving, the desktop tests the relay health response, protocol version,
+allowed PWA origin, and mobile HTML. If any address is wrong, Mobile Control
+reports the specific failed check rather than showing the relay as ready. The
+repository deployment checklist is in
+[MOBILE_DEPLOYMENT.md](MOBILE_DEPLOYMENT.md).
 
 1. Open **Mobile Control** on the desktop.
 2. Create a short-lived QR pairing code.
 3. Scan it with the phone and approve the connection.
 4. Use the phone to control the existing lobby queue, ready check, champion
-   select, spells, rune page, owned skin, and ARAM bench.
+   select, spells, rune page, owned skin, and ARAM bench. During champion select,
+   the phone also shows the same three identity-free draft choices and completed
+   build evidence.
+5. Optionally install the PWA and enable local queue and draft alerts.
 
 Every mobile command is encrypted, allowlisted, and revalidated on the PC.
 Chat, invites, raw LCU requests, and broad social controls are not exposed.
+Temporary phone network interruptions retry automatically. A desktop restart,
+revoked device, or expired session requires a fresh QR code.
 
 ### Connection Doctor and Diagnostics
 

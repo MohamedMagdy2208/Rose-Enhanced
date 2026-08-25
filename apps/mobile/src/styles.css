@@ -45,7 +45,7 @@ h3 { margin: 0; font-size: 15px; }
 .hero-card > p:not(.eyebrow) { max-width: 470px; margin: 17px 0; color: #baabb2; line-height: 1.55; }
 .security-line { display: flex; align-items: center; gap: 8px; color: #d8b8c2; font-size: 12px; }
 
-.pair-card, .client-strip, .queue-panel, .champ-select-panel, .loadout-panel, .aram-panel, .standby-card, .snapshot-loading { border: 1px solid var(--line); border-radius: 16px; background: rgba(24, 19, 24, .96); box-shadow: 0 18px 50px rgba(0, 0, 0, .2); }
+.pair-card, .client-strip, .queue-panel, .champ-select-panel, .loadout-panel, .aram-panel, .standby-card, .snapshot-loading, .mobile-patch-brief { border: 1px solid var(--line); border-radius: 16px; background: rgba(24, 19, 24, .96); box-shadow: 0 18px 50px rgba(0, 0, 0, .2); }
 .pair-card { padding: 28px 22px; text-align: center; }
 .pair-card > p:not(.eyebrow) { color: var(--muted); line-height: 1.5; }
 .pair-card > button { width: 100%; margin-top: 10px; border: 0; border-radius: 10px; color: #fff6f8; background: var(--accent-strong); font-weight: 800; }
@@ -56,6 +56,9 @@ h3 { margin: 0; font-size: 15px; }
 .client-strip strong, .client-strip small { display: block; }
 .client-strip small { margin-top: 3px; color: var(--muted); font-size: 12px; }
 .client-strip > svg { color: var(--green); }
+.mobile-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.mobile-quick-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 12px; color: #d9cbd0; background: #211820; border: 1px solid #493640; border-radius: 9px; font-size: 11px; font-weight: 750; }
+.mobile-quick-actions button.is-enabled { color: #b7e8d1; border-color: #315d4a; background: #17251f; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .queue-panel { margin-top: 12px; padding: 18px; }
 .phase-badge { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap; }
@@ -98,6 +101,37 @@ h3 { margin: 0; font-size: 15px; }
 .ban-strip strong { margin-right: 3px; color: var(--muted); font-size: 10px; text-transform: uppercase; }
 .ban-strip span { padding: 4px 6px; border-radius: 6px; color: #d8c8ce; background: #302229; font-size: 10px; }
 .ban-strip small { color: #81757a; font-size: 10px; }
+.mobile-coach { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.mobile-coach-health { width: fit-content; margin: 10px 0 0; padding: 4px 7px; color: var(--gold); background: rgb(223 164 82 / 0.08); border: 1px solid rgb(223 164 82 / 0.24); border-radius: 999px; font-size: 9px; }
+.mobile-coach-health--healthy { color: var(--green); background: rgb(88 184 148 / 0.08); border-color: rgb(88 184 148 / 0.24); }
+.mobile-coach-health--unavailable { color: var(--red); background: rgb(223 107 101 / 0.08); border-color: rgb(223 107 101 / 0.24); }
+.mobile-coach .section-heading > svg, .mobile-patch-brief .section-heading > svg { color: var(--gold); }
+.mobile-coach-choices { display: grid; gap: 8px; padding: 0; margin: 13px 0 0; list-style: none; }
+.mobile-coach-choices > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 10px; border: 1px solid #49343e; border-radius: 10px; background: #120f12; }
+.mobile-coach-rank { display: grid; width: 28px; height: 28px; place-items: center; color: #f0bd85; border: 1px solid #775236; border-radius: 50%; background: #291d14; font: 700 12px/1 Georgia, serif; }
+.mobile-coach-choices strong, .mobile-coach-choices small { display: block; }
+.mobile-coach-choices strong { font-size: 12px; }
+.mobile-coach-choices small { margin-top: 2px; color: var(--muted); font-size: 9px; text-transform: capitalize; }
+.mobile-coach-choices p { display: flex; align-items: flex-start; gap: 4px; margin: 5px 0 0; color: #c5b4bb; font-size: 10px; line-height: 1.35; }
+.mobile-coach-choices p svg { flex: 0 0 auto; margin-top: 1px; color: var(--gold); }
+.mobile-coach-choices button { min-height: 40px; padding: 0 10px; font-size: 10px; }
+.mobile-coach-empty { margin: 13px 0 0; padding: 12px; border: 1px dashed #55414a; border-radius: 9px; }
+.mobile-builds { margin-top: 13px; padding: 12px; border: 1px solid #49343e; border-radius: 10px; background: #120f12; }
+.mobile-builds-heading { display: flex; align-items: center; gap: 7px; color: #eadde2; font-size: 11px; }
+.mobile-builds-heading svg { color: var(--gold); }
+.mobile-builds article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 0; border-top: 1px solid #332931; }
+.mobile-builds article:first-of-type { margin-top: 8px; }
+.mobile-builds article strong, .mobile-builds article small { display: block; }
+.mobile-builds article strong { color: #eadde2; font-size: 10px; line-height: 1.4; }
+.mobile-builds article small { margin-top: 3px; color: var(--muted); font-size: 9px; text-transform: capitalize; }
+.mobile-builds article > span { color: var(--green); font: 700 15px/1 Georgia, serif; }
+.mobile-builds > p { margin: 3px 0 0; color: #8e8187; font-size: 9px; line-height: 1.4; }
+.mobile-patch-brief { margin-top: 12px; padding: 17px; }
+.mobile-patch-brief ol { display: grid; gap: 0; padding: 0; margin: 12px 0 0; list-style: none; }
+.mobile-patch-brief li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; padding: 10px 0; border-top: 1px solid var(--line); }
+.mobile-patch-brief li > span { align-self: start; padding: 4px 6px; color: #f0bd85; border: 1px solid #75522f; border-radius: 999px; background: #291e12; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.mobile-patch-brief strong { font-size: 11px; }
+.mobile-patch-brief p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 
 .champion-picker { margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--line); }
 .picker-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
@@ -152,6 +186,8 @@ select { width: 100%; padding: 0 10px; border: 1px solid #493640; border-radius:
   .team-roster li { padding: 5px; }
   .champion-monogram { width: 27px; height: 27px; }
   .champion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mobile-coach-choices > li { grid-template-columns: auto minmax(0, 1fr); }
+  .mobile-coach-choices button { grid-column: 2; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }

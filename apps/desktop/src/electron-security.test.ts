@@ -20,7 +20,7 @@ describe("Electron security policy", () => {
   });
 
   it("accepts only the trusted top-level renderer frame", () => {
-    const mainFrame = { url: "file:///app/index.html" };
+    const mainFrame = { url: "summonerkit://app/index.html" };
     const contents = { mainFrame, getURL: () => mainFrame.url } as unknown as WebContents;
     const trustedEvent = { sender: contents, senderFrame: mainFrame } as unknown as IpcMainInvokeEvent;
     const childFrameEvent = { sender: contents, senderFrame: { url: mainFrame.url } } as unknown as IpcMainInvokeEvent;

@@ -1,6 +1,7 @@
 import { Bot, Check, Eye, ExternalLink, MonitorUp, MousePointerClick, ShieldAlert, X, Zap } from "lucide-react";
 import type { AutomationSettings, CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import type { AppSurface } from "../components/AppShell";
+import { ChampionPlanEditor } from "../components/ChampionPlanEditor";
 import { ProfileEditor } from "../components/ProfileEditor";
 import { StatusPill } from "../components/StatusPill";
 import { Toggle } from "../components/Toggle";
@@ -12,8 +13,8 @@ const featureCopy: Array<{
   description: string;
 }> = [
   { key: "autoAccept", label: "Auto-accept", description: "Accept after the active profile's delay." },
-  { key: "autoPick", label: "Timed auto-pick", description: "Hover now, then lock near the deadline unless you intervene." },
-  { key: "autoBan", label: "Timed auto-ban", description: "Skip allied intents and use the first valid priority." },
+  { key: "autoPick", label: "Timed auto-pick", description: "Try the primary pick, fall back in order, then lock near the deadline." },
+  { key: "autoBan", label: "Timed auto-ban", description: "Protect allied intents and use the first valid configured ban." },
   { key: "autoSpells", label: "Summoner spells", description: "Apply the selected profile's spell pair." },
   { key: "autoRunes", label: "Rune preset", description: "Update only the SummonerKit-owned rune page." },
 ];
@@ -28,13 +29,15 @@ export function AutomationPage({
   onCommand: (command: CompanionCommand) => Promise<void>;
 }) {
   const { automation, audit, profiles } = snapshot;
+  const championNames = new Map(snapshot.collection.champions.map((champion) => [champion.id, champion.name]));
+  const championName = (championId: number | null) => championId ? championNames.get(championId) ?? `Champion ${championId}` : null;
 
   return (
     <div className="page automation-page">
       <header className="page-header">
         <p className="eyebrow">Automation profiles</p>
         <h1>Helpful by default. Never hidden.</h1>
-        <p className="page-lede">Every decision is visible, delayed, validated against live state, and cancelled when you take control.</p>
+        <p className="page-lede">Choose a primary champion and ordered backups. Every decision is visible, validated against live state, and cancelled when you take control.</p>
       </header>
 
       {surface === "desktop" ? <section className="automation-mode" aria-labelledby="automation-mode-title">
@@ -55,7 +58,7 @@ export function AutomationPage({
           <ul>
             {snapshot.pendingAutomation.map((pending) => (
               <li key={pending.id}>
-                <div><strong>{pending.action}</strong><p>{pending.reason}</p></div>
+                <div><strong>{pending.action}{championName(pending.championId) ? ` · ${championName(pending.championId)}` : ""}</strong><p>{pending.reason}</p></div>
                 <div className="pending-automation__actions">
                   <button className="button button--primary" type="button" onClick={() => onCommand({ type: "automation.confirm", pendingId: pending.id })}><Check size={15} /> Confirm</button>
                   <button className="button button--ghost" type="button" onClick={() => onCommand({ type: "automation.dismiss", pendingId: pending.id })}><X size={15} /> Dismiss</button>
@@ -100,19 +103,20 @@ export function AutomationPage({
           <div className="panel__header"><div><p className="eyebrow">Audit trail</p><h2>Latest decisions</h2></div></div>
           {audit.length === 0 ? <div className="compact-empty"><Bot size={20} /><span>No decisions recorded</span></div> : (
             <ol className="audit-list audit-list--compact">
-              {audit.slice(0, 8).map((event) => <li key={event.id}><span className={`audit-list__marker audit-list__marker--${event.result}`} /><div><strong>{event.action} · {event.result}</strong><p>{event.reason}</p></div><time>{formatRelativeTime(event.createdAt)}</time></li>)}
+              {audit.slice(0, 8).map((event) => <li key={event.id}><span className={`audit-list__marker audit-list__marker--${event.result}`} /><div><strong>{event.action} · {event.result}{championName(event.championId) ? ` · ${championName(event.championId)}` : ""}</strong><p>{event.reason}</p></div><time>{formatRelativeTime(event.createdAt)}</time></li>)}
             </ol>
           )}
         </section>
       </div>
 
-      {surface === "desktop" ? <ProfileEditor profiles={profiles} onCommand={onCommand} /> : (
+      {surface === "desktop" ? <ProfileEditor profiles={profiles} champions={snapshot.collection.champions} onCommand={onCommand} /> : <>
+        <ChampionPlanEditor profiles={profiles} champions={snapshot.collection.champions} onCommand={onCommand} />
         <section className="desktop-handoff">
           <MonitorUp size={21} aria-hidden="true" />
-          <div><p className="eyebrow">Advanced configuration</p><h2>Profiles, runes, and timing stay on desktop</h2><p>The in-client panel keeps match-time controls focused. Edit queue, role, pick/ban, spell, rune, and timing profiles in the desktop app.</p></div>
-          <button className="button button--secondary" type="button" onClick={() => onCommand({ type: "desktop.open" })}>Open profile editor</button>
+          <div><p className="eyebrow">Advanced configuration</p><h2>Queue, role, runes, and timing stay on desktop</h2><p>You can edit champion priorities here inside Rose. Use desktop only for the less frequent profile details and execution-mode acknowledgement.</p></div>
+          <button className="button button--secondary" type="button" onClick={() => onCommand({ type: "desktop.open" })}>Open full profile editor</button>
         </section>
-      )}
+      </>}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/con
 import { championName, timerSeconds } from "../mobile-view";
 import { ChampionPicker } from "./ChampionPicker";
 import { LoadoutPanel } from "./LoadoutPanel";
+import { MobileCoachPanel } from "./MobileCoachPanel";
 import { TeamRoster } from "./TeamRoster";
 
 interface ChampionSelectPanelProps {
@@ -37,6 +38,7 @@ export function ChampionSelectPanel({ snapshot, pending, send }: ChampionSelectP
         {[...championSelect.myTeamBans, ...championSelect.theirTeamBans].map((championId, index) => <span key={`${championId}-${index}`}>{championName(snapshot.champions, championId)}</span>)}
         {championSelect.myTeamBans.length + championSelect.theirTeamBans.length === 0 ? <small>No bans locked yet</small> : null}
       </div>
+      <MobileCoachPanel snapshot={snapshot} pending={pending} send={send} />
       <ChampionPicker snapshot={snapshot} pending={pending} send={send} />
       <LoadoutPanel snapshot={snapshot} pending={pending} send={send} />
       {snapshot.aram.active ? (

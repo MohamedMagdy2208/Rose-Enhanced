@@ -46,6 +46,8 @@ function context(overrides: Partial<AutomationContext> = {}): AutomationContext 
     pickableChampionIds: new Set([103, AhriFallback]),
     bannableChampionIds: new Set([238, 157]),
     alliedIntentChampionIds: new Set(),
+    teammateIntentChampionIds: new Set(),
+    championNames: new Map([[103, "Ahri"], [AhriFallback, "LeBlanc"], [238, "Zed"], [157, "Yasuo"]]),
     profile,
     settings,
     ...overrides,
@@ -93,6 +95,37 @@ describe("AutomationEngine", () => {
       }),
     );
     expect(effects[0]).toMatchObject({ type: "hoverAction", championId: 157 });
+    expect(effects[0]?.decision.reason).toContain("selected backup #2");
+  });
+
+  it("skips a teammate's intended pick and uses the next configured choice", () => {
+    const effects = engine.evaluateChampSelect(
+      context({ teammateIntentChampionIds: new Set([103]) }),
+    );
+    expect(effects[0]).toMatchObject({ type: "hoverAction", championId: AhriFallback });
+    expect(effects[0]?.decision.reason).toContain("reserved by a teammate");
+  });
+
+  it("switches to a backup when the automated hover becomes unavailable", () => {
+    expect(engine.evaluateChampSelect(context())[0]).toMatchObject({ championId: 103 });
+
+    const staleHover = context({
+      pickableChampionIds: new Set([AhriFallback]),
+      actions: [{ ...context().actions[0]!, championId: 103 }],
+    });
+    expect(engine.evaluateChampSelect(staleHover)[0]).toMatchObject({
+      type: "hoverAction",
+      championId: AhriFallback,
+      decision: { reason: expect.stringContaining("previous automated hover became invalid") },
+    });
+
+    // A duplicate LCU event may still carry the old automated hover before the fallback write echoes.
+    expect(engine.evaluateChampSelect(staleHover)).toEqual([]);
+    expect(engine.evaluateChampSelect(context({
+      timerRemainingMs: 2_500,
+      pickableChampionIds: new Set([AhriFallback]),
+      actions: [{ ...context().actions[0]!, championId: AhriFallback }],
+    }))[0]).toMatchObject({ type: "completeAction", championId: AhriFallback });
   });
 
   it("waits for the configured ready-check delay and deduplicates acceptance", () => {

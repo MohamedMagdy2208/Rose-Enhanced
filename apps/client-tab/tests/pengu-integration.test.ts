@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CLIENT_TAB_PLUGIN_VERSION } from "@summonerkit/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION, CLIENT_TAB_PROTOCOL_VERSION } from "@summonerkit/contracts";
 
 const templateUrl = new URL("../pengu/index.template.js", import.meta.url);
 const openWindows: Window[] = [];
@@ -18,7 +18,7 @@ async function loadBootstrap(window: Window, bridgeAvailable = true): Promise<vo
     .replaceAll("__SUMMONERKIT_PORT__", "17654")
     .replaceAll("__SUMMONERKIT_NAV_ICON__", "data:image/png;base64,dGVzdA==")
     .replaceAll("__SUMMONERKIT_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
-    .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", "4");
+    .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
   window.eval(executableSource);
   await new Promise((resolve) => setTimeout(resolve, 10));
 }
@@ -101,7 +101,7 @@ describe("Pengu client-surface integration", () => {
         type: "summonerkit.auth",
         token: testBridgeToken,
         pluginVersion: CLIENT_TAB_PLUGIN_VERSION,
-        protocolVersion: 4,
+        protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
       },
       "http://127.0.0.1:17654",
     );

@@ -8,6 +8,7 @@ import type {
   RemotePairingOffer,
 } from "@summonerkit/contracts";
 import { companionCommandSchema } from "@summonerkit/contracts";
+import { draftCoachChoices } from "@summonerkit/core";
 import { deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, verifyPairingProof, type EncryptedEnvelope } from "@summonerkit/remote";
 import QRCode from "qrcode";
 import WebSocket from "ws";
@@ -37,6 +38,14 @@ const remoteMessageSchema = z.object({
   command: companionCommandSchema,
 });
 
+const relayHealthSchema = z.object({
+  status: z.literal("ok"),
+  service: z.literal("summonerkit-relay"),
+  protocolVersion: z.literal(1),
+  mobileOrigin: z.string().url(),
+  checkedAt: z.string().datetime(),
+}).strict();
+
 const MAX_REMOTE_PLAINTEXT_BYTES = 44 * 1024;
 
 const REMOTE_COMMANDS = new Set<CompanionCommand["type"]>([
@@ -56,6 +65,45 @@ export function isRemoteCommandAllowed(command: CompanionCommand): boolean {
   return REMOTE_COMMANDS.has(command.type);
 }
 
+async function deployedRelayHealth(relayUrl: string, fetcher: typeof fetch) {
+  const response = await fetcher(`${relayUrl.replace(/\/$/u, "")}/health`, {
+    method: "GET",
+    headers: { accept: "application/json" },
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`The mobile relay health check returned HTTP ${response.status}.`);
+  return relayHealthSchema.parse(await response.json());
+}
+
+async function assertMobileShell(mobileUrl: string, fetcher: typeof fetch): Promise<void> {
+  const response = await fetcher(mobileUrl, {
+    method: "GET",
+    headers: { accept: "text/html" },
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`The mobile PWA health check returned HTTP ${response.status}.`);
+  if (!(response.headers.get("content-type") ?? "").toLowerCase().includes("text/html")) {
+    throw new Error("The configured mobile URL did not return the SummonerKit web application.");
+  }
+}
+
+export async function probeRemoteDeployment(
+  relayUrl: string,
+  mobileUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  const health = await deployedRelayHealth(relayUrl, fetcher);
+  const expectedMobileOrigin = new URL(mobileUrl).origin;
+  if (health.mobileOrigin !== expectedMobileOrigin) {
+    throw new Error(`The relay allows ${health.mobileOrigin}, but the mobile app uses ${expectedMobileOrigin}.`);
+  }
+  await assertMobileShell(mobileUrl, fetcher);
+}
+
 interface ActivePairing {
   roomId: string;
   deviceId: string | null;
@@ -66,9 +114,9 @@ interface ActivePairing {
 }
 
 export class RemoteService {
-  private readonly relayUrl = process.env.SUMMONERKIT_RELAY_URL?.replace(/\/$/u, "") ?? null;
-  private readonly mobileUrl = process.env.SUMMONERKIT_MOBILE_URL ?? null;
-  private readonly adminSecret = process.env.SUMMONERKIT_RELAY_ADMIN_SECRET ?? null;
+  private relayUrl: string | null;
+  private mobileUrl: string | null;
+  private adminSecret: string | null;
   private active: ActivePairing | null = null;
   private outbound = Promise.resolve();
 
@@ -78,18 +126,25 @@ export class RemoteService {
     private readonly dispatch: (command: CompanionCommand) => Promise<CommandResult>,
     private readonly logger: AppLogger,
   ) {
+    const configuration = this.settings.get().remoteConfiguration;
+    this.relayUrl = process.env.SUMMONERKIT_RELAY_URL?.replace(/\/$/u, "") ?? configuration.relayUrl;
+    this.mobileUrl = process.env.SUMMONERKIT_MOBILE_URL ?? configuration.mobileUrl;
+    this.adminSecret = process.env.SUMMONERKIT_RELAY_ADMIN_SECRET ?? configuration.adminSecret;
     this.store.on("changed", () => this.queueSnapshot());
     this.store.update((snapshot) => {
       snapshot.remote.relayConfigured = this.configured;
+      snapshot.remote.relayUrl = this.relayUrl;
+      snapshot.remote.mobileUrl = this.mobileUrl;
       snapshot.remote.status = this.configured ? "ready" : "unavailable";
       snapshot.remote.lastError = this.configured
         ? null
         : this.configurationError();
     });
+    if (this.configured) void this.verifyConfiguredDeployment();
   }
 
   get configured(): boolean {
-    return Boolean(this.relayUrl && this.mobileUrl && this.adminSecret && this.adminSecret.length >= 32 && secureRelayUrl(this.relayUrl));
+    return Boolean(this.relayUrl && this.mobileUrl && this.adminSecret && this.adminSecret.length >= 32 && secureRelayUrl(this.relayUrl) && secureRelayUrl(this.mobileUrl));
   }
 
   private configurationError(): string {
@@ -97,7 +152,30 @@ export class RemoteService {
       return "Set SUMMONERKIT_RELAY_URL, SUMMONERKIT_MOBILE_URL, and SUMMONERKIT_RELAY_ADMIN_SECRET.";
     }
     if (this.adminSecret.length < 32) return "SUMMONERKIT_RELAY_ADMIN_SECRET must contain at least 32 characters.";
-    return "The relay URL must use HTTPS (HTTP is allowed only for localhost development).";
+    return "The relay and mobile URLs must use HTTPS (HTTP is allowed only for localhost development).";
+  }
+
+  async configure(relayUrl: string, mobileUrl: string, adminSecret: string): Promise<void> {
+    const normalizedRelay = relayUrl.replace(/\/$/u, "");
+    if (!secureRelayUrl(normalizedRelay) || !secureRelayUrl(mobileUrl)) {
+      throw new Error("The relay and mobile URLs must use HTTPS, except for localhost development.");
+    }
+    if (adminSecret.length < 32) throw new Error("The relay administrator secret must contain at least 32 characters.");
+    await probeRemoteDeployment(normalizedRelay, mobileUrl);
+    this.disconnectActive("Mobile relay configuration changed.");
+    const settings = await this.settings.update((draft) => {
+      draft.remoteConfiguration = { relayUrl: normalizedRelay, mobileUrl, adminSecret };
+    });
+    this.relayUrl = settings.remoteConfiguration.relayUrl;
+    this.mobileUrl = settings.remoteConfiguration.mobileUrl;
+    this.adminSecret = settings.remoteConfiguration.adminSecret;
+    this.store.update((snapshot) => {
+      snapshot.remote.relayConfigured = this.configured;
+      snapshot.remote.relayUrl = this.relayUrl;
+      snapshot.remote.mobileUrl = this.mobileUrl;
+      snapshot.remote.status = this.configured ? "ready" : "unavailable";
+      snapshot.remote.lastError = this.configured ? null : this.configurationError();
+    });
   }
 
   async createPairing(): Promise<RemotePairingOffer> {
@@ -175,6 +253,20 @@ export class RemoteService {
     void this.persistAllDisconnected();
   }
 
+  private async verifyConfiguredDeployment(): Promise<void> {
+    if (!this.relayUrl || !this.mobileUrl) return;
+    try {
+      await probeRemoteDeployment(this.relayUrl, this.mobileUrl);
+      if (!this.active) this.store.update((snapshot) => {
+        snapshot.remote.status = "ready";
+        snapshot.remote.lastError = null;
+      });
+    } catch (error) {
+      this.logger.warn("Mobile deployment health check failed", { error: String(error) });
+      if (!this.active) this.reportError(error);
+    }
+  }
+
   private bindSocket(socket: WebSocket): void {
     socket.on("message", (data) => void this.receive(socket, String(data)));
     socket.on("close", () => void this.handleClose(socket));
@@ -195,10 +287,6 @@ export class RemoteService {
       const candidate = JSON.parse(raw) as unknown;
       const peer = peerKeySchema.safeParse(candidate);
       if (peer.success) {
-        if (active.channel && active.deviceId === peer.data.deviceId) {
-          this.queueSnapshot();
-          return;
-        }
         const known = this.settings.get().remoteDevices.find((device) => device.id === peer.data.deviceId);
         if (known?.revoked) throw new Error("This device was revoked locally.");
         if (!(await verifyPairingProof(peer.data.pairingProof, active.oneTimeSecret, active.roomId, peer.data.publicKey))) {
@@ -230,7 +318,8 @@ export class RemoteService {
 
   private async recordConnectedDevice(id: string, name: string): Promise<void> {
     const now = new Date().toISOString();
-    const next: RemoteDevice = { id, name, pairedAt: now, lastSeenAt: now, connected: true, revoked: false };
+    const pairedAt = this.settings.get().remoteDevices.find((device) => device.id === id)?.pairedAt ?? now;
+    const next: RemoteDevice = { id, name, pairedAt, lastSeenAt: now, connected: true, revoked: false };
     const settings = await this.settings.update((draft) => {
       const existing = draft.remoteDevices.findIndex((device) => device.id === id);
       if (existing >= 0) draft.remoteDevices[existing] = { ...draft.remoteDevices[existing]!, ...next };
@@ -338,6 +427,14 @@ export function remoteSnapshot(snapshot: CompanionSnapshot): RemoteCompanionSnap
       ?.skins.filter((skin) => skin.owned)
       .map((skin) => ({ id: skin.id, championId: skin.championId, name: skin.name })) ?? []
     : [];
+  const builds = selectedChampionId
+    ? snapshot.insights.coach.builds
+      .filter((build) => build.championId === selectedChampionId)
+      .sort((left, right) => right.sampleSize - left.sampleSize)
+      .slice(0, 3)
+    : [];
+  const itemIds = new Set(builds.flatMap((build) => build.itemIds));
+  const currentPatch = snapshot.connection.patch?.match(/^\d+\.\d+/u)?.[0] ?? null;
   return {
     revision: snapshot.revision,
     connection: {
@@ -355,6 +452,22 @@ export function remoteSnapshot(snapshot: CompanionSnapshot): RemoteCompanionSnap
       owned: champion.owned,
     })),
     ownedSkins,
+    coach: {
+      guidance: {
+        status: snapshot.insights.guidance.status,
+        source: snapshot.insights.guidance.source,
+        providerName: snapshot.insights.guidance.providerName,
+        generatedAt: snapshot.insights.guidance.generatedAt,
+        currentPatchCovered: snapshot.insights.guidance.currentPatchCovered,
+        coverage: structuredClone(snapshot.insights.guidance.coverage),
+      },
+      draftChoices: draftCoachChoices(snapshot, 3),
+      builds: structuredClone(builds),
+      items: snapshot.insights.coach.items.filter((item) => itemIds.has(item.id)),
+      patchImpacts: snapshot.insights.coach.patchImpacts
+        .filter((impact) => (!currentPatch || impact.patch.startsWith(currentPatch)) && (impact.championId === null || impact.championId === selectedChampionId))
+        .slice(0, 5),
+    },
   };
 }
 

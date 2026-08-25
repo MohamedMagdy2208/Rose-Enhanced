@@ -1,12 +1,15 @@
 name: Deploy mobile PWA
 
 on:
+  schedule:
+    - cron: "17 4 * * *"
   push:
     branches: [main]
     paths:
       - "apps/mobile/**"
       - "packages/contracts/**"
       - "packages/remote/**"
+      - "apps/data-publisher/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/mobile-pages.yml"
@@ -36,13 +39,34 @@ jobs:
           cache: npm
       - uses: actions/configure-pages@v6
       - run: npm ci
+      - name: Require the production Riot publisher key
+        shell: bash
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+        run: test -n "$RIOT_API_KEY" || (echo "RIOT_API_KEY is required; refusing to deploy a PWA with a missing guidance feed." && exit 1)
       - name: Build mobile PWA
         env:
           SUMMONERKIT_MOBILE_BASE: /SummonerKit/
         run: npm run build --workspace @summonerkit/mobile
+      - name: Publish aggregate rune feed
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+          SUMMONERKIT_PRO_ROSTER_JSON: ${{ secrets.SUMMONERKIT_PRO_ROSTER_JSON }}
+          SUMMONERKIT_PATCH_IMPACTS_JSON: ${{ secrets.SUMMONERKIT_PATCH_IMPACTS_JSON }}
+          SUMMONERKIT_FEED_OUTPUT: apps/mobile/dist/data/runes-v1.json
+          SUMMONERKIT_FEED_PROVIDER_NAME: SummonerKit approved Riot aggregation
+          RIOT_PLATFORMS: EUW1,KR
+        run: npm run data:publish
+      - name: Validate aggregate feed before upload
+        run: npm run verify-feed --workspace @summonerkit/data-publisher -- apps/mobile/dist/data/runes-v1.json
       - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/mobile/dist
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+      - name: Verify the published feed
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: npm run verify-feed --workspace @summonerkit/data-publisher -- "${PAGE_URL%/}/data/runes-v1.json"

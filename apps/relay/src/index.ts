@@ -39,6 +39,7 @@ const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_HTTP_BODY_BYTES = 16 * 1024;
 const MAX_MESSAGES_PER_TEN_SECONDS = 40;
 const MAX_SESSION_MS = 24 * 60 * 60 * 1_000;
+const RELAY_PROTOCOL_VERSION = 1;
 
 const responseSecurityHeaders = {
   "cache-control": "no-store",
@@ -140,6 +141,21 @@ function preflightResponse(cors: Record<string, string>): Response {
   });
 }
 
+function relayHealthResponse(env: Env): Response {
+  const mobileOrigin = (() => {
+    try {
+      const url = new URL(env.MOBILE_ORIGIN);
+      return url.protocol === "https:" && url.origin === env.MOBILE_ORIGIN ? url.origin : null;
+    } catch {
+      return null;
+    }
+  })();
+  if (!mobileOrigin || !env.PAIRING_ADMIN_SECRET || env.PAIRING_ADMIN_SECRET.length < 32) {
+    return json({ status: "misconfigured", service: "summonerkit-relay", protocolVersion: RELAY_PROTOCOL_VERSION }, 503);
+  }
+  return json({ status: "ok", service: "summonerkit-relay", protocolVersion: RELAY_PROTOCOL_VERSION, mobileOrigin, checkedAt: new Date().toISOString() });
+}
+
 function relayAdminError(request: Request, env: Env, cors: Record<string, string>): Response | null {
   if (!env.PAIRING_ADMIN_SECRET || env.PAIRING_ADMIN_SECRET.length < 32) {
     return json({ error: "Relay administrator secret is not securely configured." }, 503, cors);
@@ -204,6 +220,7 @@ export default {
     const url = new URL(request.url);
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return preflightResponse(cors);
+    if (request.method === "GET" && url.pathname === "/health") return relayHealthResponse(env);
     if (request.method === "POST" && url.pathname === "/rooms") return createRoom(request, env, url, cors);
     return forwardRoomRequest(request, env, url, cors);
   },

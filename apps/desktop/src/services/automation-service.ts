@@ -225,6 +225,8 @@ export class AutomationService {
         pickableChampionIds: this.pickable,
         bannableChampionIds: this.bannable,
         alliedIntentChampionIds: this.alliedIntentIds(),
+        teammateIntentChampionIds: this.teammateIntentIds(),
+        championNames: new Map(this.store.getSnapshot().collection.champions.map((champion) => [champion.id, champion.name])),
         profile,
         settings: persisted.automation,
       };
@@ -296,6 +298,9 @@ export class AutomationService {
     if (action.type === "ban" && this.alliedIntentIds().has(effect.championId)) {
       throw new Error("The ban now conflicts with an allied intent.");
     }
+    if (action.type === "pick" && this.teammateIntentIds().has(effect.championId)) {
+      throw new Error("The pick now conflicts with a teammate's intent.");
+    }
   }
 
   private queueConfirmation(effect: ExecutableAutomationEffect, profile: AutomationProfile): void {
@@ -354,6 +359,15 @@ export class AutomationService {
   private alliedIntentIds(): Set<number> {
     return new Set(
       (this.champSession?.myTeam ?? [])
+        .map((member) => member.championPickIntent ?? member.championId ?? 0)
+        .filter((championId) => championId > 0),
+    );
+  }
+
+  private teammateIntentIds(): Set<number> {
+    return new Set(
+      (this.champSession?.myTeam ?? [])
+        .filter((member) => member.cellId !== this.champSession?.localPlayerCellId)
         .map((member) => member.championPickIntent ?? member.championId ?? 0)
         .filter((championId) => championId > 0),
     );

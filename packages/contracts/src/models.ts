@@ -13,6 +13,7 @@ export type CapabilityName =
   | "champSelect"
   | "runes"
   | "summonerSpells"
+  | "presence"
   | "clientTab";
 
 export type CapabilitySet = Record<CapabilityName, boolean>;
@@ -25,6 +26,15 @@ export interface LcuConnectionState {
   patch: string | null;
   capabilities: CapabilitySet;
   connectedAt: string | null;
+  lastError: string | null;
+}
+
+export type PresenceAvailability = "online" | "away";
+
+export interface PresenceState {
+  status: "unavailable" | "loading" | "ready" | "error";
+  availability: PresenceAvailability | null;
+  updatedAt: string | null;
   lastError: string | null;
 }
 
@@ -327,6 +337,72 @@ export interface RuneRecommendation {
   generatedAt: string;
 }
 
+export interface BuildRecommendation {
+  id: string;
+  championId: number;
+  role: RuneRecommendationRole;
+  queueId: number;
+  audience: RuneRecommendationAudience;
+  patch: string;
+  itemIds: number[];
+  spellIds: number[];
+  sampleSize: number;
+  winRate: number;
+  pickRate: number;
+  generatedAt: string;
+}
+
+export interface DraftSignal {
+  id: string;
+  championId: number;
+  role: RuneRecommendationRole;
+  queueId: number;
+  audience: RuneRecommendationAudience;
+  patch: string;
+  sampleSize: number;
+  winRate: number;
+  synergyChampionIds: number[];
+  toughMatchupChampionIds: number[];
+  generatedAt: string;
+}
+
+export interface PatchImpactRecord {
+  id: string;
+  patch: string;
+  championId: number | null;
+  category: "buff" | "nerf" | "adjustment" | "item" | "rune" | "system";
+  title: string;
+  summary: string;
+  sourceUrl: string | null;
+}
+
+export interface CoachItemRecord {
+  id: number;
+  name: string;
+  iconPath: string | null;
+}
+
+export interface CoachSnapshot {
+  status: InsightStatus;
+  source: "none" | "cache" | "online";
+  stale: boolean;
+  providerName: string | null;
+  updatedAt: string | null;
+  builds: BuildRecommendation[];
+  draftSignals: DraftSignal[];
+  patchImpacts: PatchImpactRecord[];
+  items: CoachItemRecord[];
+  warnings: string[];
+}
+
+export interface DraftCoachChoice {
+  championId: number;
+  action: "pick" | "ban";
+  score: number;
+  confidence: "low" | "medium" | "high";
+  reasons: string[];
+}
+
 export interface RunePerkRecord {
   id: number;
   name: string;
@@ -342,6 +418,34 @@ export interface RuneRecommendationsSnapshot {
   recommendations: RuneRecommendation[];
   perks: RunePerkRecord[];
   warnings: string[];
+}
+
+export type GuidanceFeedHealthStatus = "idle" | "checking" | "healthy" | "degraded" | "unavailable";
+
+export interface GuidanceFeedCoverage {
+  recommendations: number;
+  builds: number;
+  draftSignals: number;
+  patchImpacts: number;
+  champions: number;
+  patches: string[];
+}
+
+export interface GuidanceFeedHealth {
+  status: GuidanceFeedHealthStatus;
+  source: "none" | "cache" | "online";
+  endpoint: string | null;
+  schemaVersion: 1 | 2 | null;
+  providerName: string | null;
+  checkedAt: string | null;
+  generatedAt: string | null;
+  currentPatch: string | null;
+  currentPatchCovered: boolean | null;
+  observationCount: number | null;
+  cohortSize: number | null;
+  lookbackDays: number | null;
+  coverage: GuidanceFeedCoverage;
+  lastError: string | null;
 }
 
 export interface ChampionPerformanceRecord {
@@ -375,6 +479,36 @@ export interface PerformanceSummary {
   overallScore: number;
 }
 
+export interface PerformanceMatchRecord {
+  id: string;
+  championId: number;
+  queueId: number | null;
+  role: RuneRecommendationRole | null;
+  won: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number;
+  farm: number;
+  farmPerMinute: number;
+  killParticipation: number;
+  damagePerMinute: number;
+  visionPerMinute: number;
+  overallScore: number;
+  reportCard: PerformanceReportCard;
+  durationMinutes: number;
+  playedAt: string | null;
+}
+
+export type PerformanceGrade = "S" | "A" | "B" | "C" | "D";
+
+export interface PerformanceReportCard {
+  grade: PerformanceGrade;
+  headline: string;
+  strengths: string[];
+  focus: string[];
+}
+
 export interface ChampionPerformanceSnapshot {
   status: InsightStatus;
   source: "none" | "cache" | "live";
@@ -384,11 +518,14 @@ export interface ChampionPerformanceSnapshot {
   updatedAt: string | null;
   summary: PerformanceSummary;
   champions: ChampionPerformanceRecord[];
+  matches: PerformanceMatchRecord[];
   warnings: string[];
 }
 
 export interface InsightsSnapshot {
+  guidance: GuidanceFeedHealth;
   runes: RuneRecommendationsSnapshot;
+  coach: CoachSnapshot;
   performance: ChampionPerformanceSnapshot;
 }
 
@@ -412,11 +549,20 @@ export interface RemoteCompanionSnapshot {
   aram: AramState;
   champions: RemoteChampionRecord[];
   ownedSkins: RemoteSkinRecord[];
+  coach: {
+    guidance: Pick<GuidanceFeedHealth, "status" | "source" | "providerName" | "generatedAt" | "currentPatchCovered" | "coverage">;
+    draftChoices: DraftCoachChoice[];
+    builds: BuildRecommendation[];
+    items: CoachItemRecord[];
+    patchImpacts: PatchImpactRecord[];
+  };
 }
 
 export interface RemoteState {
   status: "unavailable" | "ready" | "pairing" | "connected" | "error";
   relayConfigured: boolean;
+  relayUrl: string | null;
+  mobileUrl: string | null;
   activeDeviceId: string | null;
   lastError: string | null;
 }
@@ -431,6 +577,7 @@ export interface RemotePairingOffer {
 export interface CompanionSnapshot {
   revision: number;
   connection: LcuConnectionState;
+  presence: PresenceState;
   collection: CollectionSnapshot;
   automation: AutomationSettings;
   pendingAutomation: PendingAutomationAction[];

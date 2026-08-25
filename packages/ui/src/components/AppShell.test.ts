@@ -14,6 +14,7 @@ describe("hybrid surface navigation", () => {
 
   it("keeps administration in the desktop app", () => {
     expect(navigationForSurface("desktop")).toEqual([
+      "setup",
       "dashboard",
       "collection",
       "insights",

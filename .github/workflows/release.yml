@@ -28,6 +28,24 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
+      - name: Verify public service readiness
+        shell: pwsh
+        env:
+          SUMMONERKIT_RELAY_URL: ${{ vars.SUMMONERKIT_RELAY_URL }}
+          SUMMONERKIT_MOBILE_URL: ${{ vars.SUMMONERKIT_MOBILE_URL }}
+        run: |
+          npm run verify-feed --workspace @summonerkit/data-publisher -- "https://mohamedmagdy2208.github.io/SummonerKit/data/runes-v1.json"
+          if (-not $env:SUMMONERKIT_RELAY_URL -or -not $env:SUMMONERKIT_MOBILE_URL) {
+            throw "SUMMONERKIT_RELAY_URL and SUMMONERKIT_MOBILE_URL repository variables are required."
+          }
+          $relay = Invoke-RestMethod -Uri "$($env:SUMMONERKIT_RELAY_URL.TrimEnd('/'))/health" -TimeoutSec 15
+          if ($relay.status -ne "ok" -or $relay.service -ne "summonerkit-relay" -or $relay.protocolVersion -ne 1) {
+            throw "The deployed relay failed its protocol health check."
+          }
+          $mobile = Invoke-WebRequest -Uri $env:SUMMONERKIT_MOBILE_URL -TimeoutSec 15
+          if ($mobile.StatusCode -ne 200 -or $mobile.Headers.'Content-Type' -notmatch 'text/html') {
+            throw "The deployed mobile PWA failed its health check."
+          }
       - run: npm run make
       - name: Stage release assets
         shell: pwsh
@@ -49,6 +67,16 @@ jobs:
           if ($signature.Status -ne "Valid") {
             throw "Stable releases must be Authenticode signed. Current status: $($signature.Status)."
           }
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem -LiteralPath $env:RELEASE_ROOT -File |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            }
+          $lines | Set-Content -LiteralPath (Join-Path $env:RELEASE_ROOT "CHECKSUMS-SHA256.txt") -Encoding utf8
       - name: Publish GitHub release
         shell: pwsh
         env:

@@ -51,6 +51,12 @@
 - Relay access tokens use WebSocket subprotocol headers rather than URLs. The
   relay enforces the configured PWA origin, request/message size limits, message
   rate limits, one desktop and one phone per room, and automatic room expiry.
+- The relay administrator secret is accepted only by trusted desktop IPC and is
+  persisted with Electron `safeStorage`; it is never included in normalized
+  snapshots, diagnostics, League-tab traffic, QR URLs, or mobile messages.
+- A reconnect resets both authenticated channel sequence spaces only after the
+  relay replays the mobile public-key proof to the desktop. Mobile commands stay
+  disabled until a new encrypted desktop snapshot completes that handshake.
 - The desktop sends a purpose-built mobile snapshot below the relay size limit.
   It contains normalized lobby and draft state plus a minimal champion catalog;
   account keys, Riot IDs, PUUIDs, summoner IDs, logs, paths, integrations, and
@@ -67,8 +73,11 @@
   bearer token remains exclusively in the Electron main process.
 - Applying recommended runes can update or create only a named SummonerKit
   page. The application never deletes a user rune page to make room.
-- Local match history is reduced to aggregate champion metrics in memory. Raw
-  matches and player identifiers are not stored in the analytics cache.
+- Local match history is reduced to aggregate champion metrics and
+  identity-free recent-match rows in memory. Raw matches and player identifiers
+  are not stored in the analytics cache.
+- The rune publisher holds the Riot API key only in its server-side process and
+  writes anonymous aggregate recommendations without match IDs or player IDs.
 
 The relay can still observe connection timing, room identifiers, public keys,
 device names, message sizes, and IP metadata. It cannot provide anonymity.

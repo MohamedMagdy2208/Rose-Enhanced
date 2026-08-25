@@ -7,9 +7,12 @@ import { automationProfileSchema } from "@summonerkit/contracts";
 import { z } from "zod";
 import type { AppLogger } from "./logger";
 
-type SettingsOnDisk = Partial<Omit<PersistedSettings, "bridgeToken">> & {
+type SettingsOnDisk = Partial<Omit<PersistedSettings, "bridgeToken" | "remoteConfiguration">> & {
   bridgeToken?: string;
   bridgeTokenEncrypted?: string;
+  remoteConfiguration?: Partial<Omit<PersistedSettings["remoteConfiguration"], "adminSecret">>;
+  remoteAdminSecret?: string;
+  remoteAdminSecretEncrypted?: string;
 };
 
 const automationSettingsSchema = z.object({
@@ -61,11 +64,11 @@ function storedRemoteDevices(candidate: unknown): PersistedSettings["remoteDevic
   });
 }
 
-function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, bridgeToken: string): PersistedSettings {
+function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, bridgeToken: string, remoteAdminSecret: string | null): PersistedSettings {
   const storedAutomation = raw.automation && typeof raw.automation === "object" ? raw.automation : {};
   const automation = automationSettingsSchema.safeParse({ ...fallback.automation, ...storedAutomation });
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     leaguePath: storedPath(raw.leaguePath),
     bridgeToken,
     automation: automation.success ? automation.data : fallback.automation,
@@ -74,6 +77,11 @@ function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, brid
     wishlist: storedIds(raw.wishlist),
     aramFavoriteChampionIds: storedIds(raw.aramFavoriteChampionIds),
     remoteDevices: storedRemoteDevices(raw.remoteDevices),
+    remoteConfiguration: {
+      relayUrl: storedPath(raw.remoteConfiguration?.relayUrl),
+      mobileUrl: storedPath(raw.remoteConfiguration?.mobileUrl),
+      adminSecret: remoteAdminSecret,
+    },
     integrationPaths: {
       rose: storedPath(raw.integrationPaths?.rose),
       deceive: storedPath(raw.integrationPaths?.deceive),
@@ -96,7 +104,8 @@ export class SettingsStore {
       if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Settings file is invalid.");
       const raw = candidate as SettingsOnDisk;
       const bridgeToken = this.readToken(raw) ?? fallback.bridgeToken;
-      this.current = settingsFromDisk(raw, fallback, bridgeToken);
+      const remoteAdminSecret = this.readRemoteAdminSecret(raw);
+      this.current = settingsFromDisk(raw, fallback, bridgeToken, remoteAdminSecret);
     } catch (error) {
       this.logger.info("Creating new settings store", { reason: String(error) });
       this.current = fallback;
@@ -136,14 +145,34 @@ export class SettingsStore {
       : null;
   }
 
+  private readRemoteAdminSecret(raw: SettingsOnDisk): string | null {
+    if (typeof raw.remoteAdminSecretEncrypted === "string" && safeStorage.isEncryptionAvailable()) {
+      try {
+        const decrypted = safeStorage.decryptString(Buffer.from(raw.remoteAdminSecretEncrypted, "base64"));
+        return decrypted.length >= 32 ? decrypted : null;
+      } catch (error) {
+        this.logger.warn("Could not decrypt the mobile relay secret", { error: String(error) });
+      }
+    }
+    return typeof raw.remoteAdminSecret === "string" && raw.remoteAdminSecret.length >= 32
+      ? raw.remoteAdminSecret
+      : null;
+  }
+
   private async save(settings: PersistedSettings): Promise<void> {
-    const { bridgeToken, ...rest } = settings;
+    const { bridgeToken, remoteConfiguration, ...rest } = settings;
     if (!safeStorage.isEncryptionAvailable() && app.isPackaged) {
       throw new Error("Windows credential encryption is unavailable; refusing to store the bridge secret in plaintext.");
     }
+    const remoteUrls = { relayUrl: remoteConfiguration.relayUrl, mobileUrl: remoteConfiguration.mobileUrl };
     const disk: SettingsOnDisk = safeStorage.isEncryptionAvailable()
-      ? { ...rest, bridgeTokenEncrypted: safeStorage.encryptString(bridgeToken).toString("base64") }
-      : { ...rest, bridgeToken };
+      ? {
+          ...rest,
+          remoteConfiguration: remoteUrls,
+          bridgeTokenEncrypted: safeStorage.encryptString(bridgeToken).toString("base64"),
+          ...(remoteConfiguration.adminSecret ? { remoteAdminSecretEncrypted: safeStorage.encryptString(remoteConfiguration.adminSecret).toString("base64") } : {}),
+        }
+      : { ...rest, remoteConfiguration: remoteUrls, bridgeToken, ...(remoteConfiguration.adminSecret ? { remoteAdminSecret: remoteConfiguration.adminSecret } : {}) };
     await mkdir(path.dirname(this.filePath), { recursive: true });
     const tempPath = `${this.filePath}.tmp`;
     await writeFile(tempPath, `${JSON.stringify(disk, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });

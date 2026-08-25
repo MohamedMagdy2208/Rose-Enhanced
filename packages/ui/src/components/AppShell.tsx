@@ -14,18 +14,20 @@ import {
   ShieldCheck,
   Smartphone,
   Stethoscope,
+  WandSparkles,
   X,
 } from "lucide-react";
 import type { ConnectionStatus } from "@summonerkit/contracts";
 import { StatusPill } from "./StatusPill";
 
 export type AppSurface = "desktop" | "client" | "mobile";
-export type PageId = "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "guide" | "settings";
+export type PageId = "setup" | "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "guide" | "settings";
 
 const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOnly?: boolean }> = [
+  { id: "setup", label: "Setup", icon: WandSparkles, desktopOnly: true },
   { id: "dashboard", label: "Overview", icon: Gauge },
   { id: "collection", label: "Collection", icon: Boxes },
-  { id: "insights", label: "Runes & Performance", icon: ChartNoAxesCombined },
+  { id: "insights", label: "Coach & Builds", icon: ChartNoAxesCombined },
   { id: "automation", label: "Automation", icon: Bot },
   { id: "aram", label: "ARAM", icon: Dices },
   { id: "integrations", label: "Integrations", icon: PlugZap, desktopOnly: true },

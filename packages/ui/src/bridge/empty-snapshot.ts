@@ -1,4 +1,8 @@
-import { CLIENT_TAB_PLUGIN_VERSION, type CompanionSnapshot } from "@summonerkit/contracts";
+import {
+  CLIENT_TAB_PLUGIN_VERSION,
+  CLIENT_TAB_PROTOCOL_VERSION,
+  type CompanionSnapshot,
+} from "@summonerkit/contracts";
 
 export const emptySnapshot: CompanionSnapshot = {
   revision: 0,
@@ -16,10 +20,17 @@ export const emptySnapshot: CompanionSnapshot = {
       champSelect: false,
       runes: false,
       summonerSpells: false,
+      presence: false,
       clientTab: false,
     },
     connectedAt: null,
     lastError: null,
+  },
+  presence: {
+    status: "unavailable",
+    availability: null,
+    updatedAt: null,
+    lastError: "Connect to League to manage presence.",
   },
   collection: {
     status: "idle",
@@ -89,7 +100,7 @@ export const emptySnapshot: CompanionSnapshot = {
     installedPluginVersion: null,
     installedProtocolVersion: null,
     activePluginVersion: null,
-    protocolVersion: 4,
+    protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
     activeProtocolVersion: null,
     restartRequired: false,
     lastRepairAt: null,
@@ -148,6 +159,22 @@ export const emptySnapshot: CompanionSnapshot = {
     runePages: [],
   },
   insights: {
+    guidance: {
+      status: "idle",
+      source: "none",
+      endpoint: null,
+      schemaVersion: null,
+      providerName: null,
+      checkedAt: null,
+      generatedAt: null,
+      currentPatch: null,
+      currentPatchCovered: null,
+      observationCount: null,
+      cohortSize: null,
+      lookbackDays: null,
+      coverage: { recommendations: 0, builds: 0, draftSignals: 0, patchImpacts: 0, champions: 0, patches: [] },
+      lastError: null,
+    },
     runes: {
       status: "idle",
       source: "none",
@@ -156,6 +183,18 @@ export const emptySnapshot: CompanionSnapshot = {
       updatedAt: null,
       recommendations: [],
       perks: [],
+      warnings: [],
+    },
+    coach: {
+      status: "idle",
+      source: "none",
+      stale: false,
+      providerName: null,
+      updatedAt: null,
+      builds: [],
+      draftSignals: [],
+      patchImpacts: [],
+      items: [],
       warnings: [],
     },
     performance: {
@@ -167,12 +206,15 @@ export const emptySnapshot: CompanionSnapshot = {
       updatedAt: null,
       summary: { games: 0, championsPlayed: 0, winRate: 0, kda: 0, farmPerMinute: 0, overallScore: 0 },
       champions: [],
+      matches: [],
       warnings: [],
     },
   },
   remote: {
     status: "unavailable",
     relayConfigured: false,
+    relayUrl: null,
+    mobileUrl: null,
     activeDeviceId: null,
     lastError: null,
   },

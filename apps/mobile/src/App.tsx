@@ -1,12 +1,18 @@
-import { BellRing, LockKeyhole, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { BellRing, Download, LockKeyhole, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
 import { ChampionSelectPanel } from "./components/ChampionSelectPanel";
 import { ConnectionGate } from "./components/ConnectionGate";
+import { MobilePatchBrief } from "./components/MobileCoachPanel";
 import { QueuePanel } from "./components/QueuePanel";
 import { MobileRemote } from "./pairing";
 
 type Stage = "unconfigured" | "ready" | "pairing" | "connected" | "error";
+
+interface InstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 export function App() {
   const params = useMemo(() => new URLSearchParams(window.location.hash.replace(/^#/u, "")), []);
@@ -20,6 +26,9 @@ export function App() {
   const [messageTone, setMessageTone] = useState<"neutral" | "success" | "error">("neutral");
   const [snapshot, setSnapshot] = useState<RemoteCompanionSnapshot | null>(null);
   const [pending, setPending] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [alertsEnabled, setAlertsEnabled] = useState(() => typeof Notification !== "undefined" && Notification.permission === "granted");
+  const lastAlertKey = useRef<string | null>(null);
   const [remote] = useState(() => new MobileRemote());
 
   useEffect(() => remote.subscribe(setSnapshot), [remote]);
@@ -28,12 +37,39 @@ export function App() {
     setMessageTone("neutral");
   }), [remote]);
   useEffect(() => remote.subscribeConnection((connected) => {
-    if (connected) return;
+    if (connected) {
+      setStage("connected");
+      setMessageTone("success");
+      setMessage("Encrypted desktop connection is active.");
+      return;
+    }
     setStage((current) => current === "connected" ? "error" : current);
     setMessageTone("error");
-    setMessage("The encrypted desktop connection closed. Create a new pairing code on the PC.");
+    setMessage("The encrypted desktop connection closed. Automatic recovery will retry briefly.");
   }), [remote]);
   useEffect(() => () => remote.disconnect(), [remote]);
+  useEffect(() => {
+    const capture = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent); };
+    window.addEventListener("beforeinstallprompt", capture);
+    return () => window.removeEventListener("beforeinstallprompt", capture);
+  }, []);
+  useEffect(() => {
+    if (!snapshot) return;
+    const localAction = snapshot.session.championSelect.localAction;
+    const key = snapshot.session.readyCheck.active
+      ? "ready-check"
+      : localAction?.inProgress ? `champ-select:${localAction.type}:${localAction.id}` : null;
+    if (!key) { lastAlertKey.current = null; return; }
+    if (key === lastAlertKey.current) return;
+    lastAlertKey.current = key;
+    if (!alertsEnabled || !document.hidden || typeof Notification === "undefined") return;
+    const readyCheck = key === "ready-check";
+    const title = readyCheck ? "League match found" : `Your ${localAction?.type ?? "draft"} is ready`;
+    const options = { body: readyCheck ? "Open SummonerKit Mobile to accept or decline." : "Open SummonerKit Mobile to hover or lock a champion.", icon: "./icon-192.png", tag: key };
+    void navigator.serviceWorker?.ready
+      .then((registration) => registration.showNotification(title, options))
+      .catch(() => { try { new Notification(title, options); } catch { /* The in-page status remains available. */ } });
+  }, [alertsEnabled, snapshot]);
 
   const pair = async () => {
     setStage("pairing");
@@ -48,9 +84,8 @@ export function App() {
         deviceName: navigator.userAgent.includes("Mobile") ? "My phone" : "Mobile browser",
       });
       window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
-      setStage("connected");
-      setMessageTone("success");
-      setMessage("Phone connected. Waiting for the first live desktop snapshot…");
+      setMessageTone("neutral");
+      setMessage("Relay connected. Verifying the encrypted desktop snapshot…");
     } catch (error) {
       setStage("error");
       setMessageTone("error");
@@ -77,6 +112,19 @@ export function App() {
 
   const connected = stage === "connected";
   const leagueConnected = snapshot?.connection.status === "connected";
+  const enableAlerts = async () => {
+    if (typeof Notification === "undefined") { setMessage("This browser does not support local notifications."); return; }
+    const permission = await Notification.requestPermission();
+    setAlertsEnabled(permission === "granted");
+    setMessage(permission === "granted" ? "Queue and champion-select alerts enabled." : "Notification permission was not granted.");
+    setMessageTone(permission === "granted" ? "success" : "error");
+  };
+  const install = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
   return (
     <main className="mobile-shell">
@@ -103,7 +151,12 @@ export function App() {
             <div><strong>{leagueConnected ? "League client connected" : "Waiting for League"}</strong><small>{snapshot.connection.phase}{snapshot.connection.patch ? ` · ${snapshot.connection.patch}` : ""}</small></div>
             <ShieldCheck size={20} aria-label="Encrypted channel verified" />
           </section>
+          <section className="mobile-quick-actions" aria-label="Mobile app options">
+            <button type="button" className={alertsEnabled ? "is-enabled" : ""} onClick={() => void enableAlerts()}><BellRing size={16} />{alertsEnabled ? "Alerts enabled" : "Enable alerts"}</button>
+            {installPrompt ? <button type="button" onClick={() => void install()}><Download size={16} />Install app</button> : null}
+          </section>
           <QueuePanel snapshot={snapshot} pending={pending} send={send} />
+          <MobilePatchBrief snapshot={snapshot} />
           <ChampionSelectPanel snapshot={snapshot} pending={pending} send={send} />
           {!snapshot.session.championSelect.active ? (
             <section className="standby-card">

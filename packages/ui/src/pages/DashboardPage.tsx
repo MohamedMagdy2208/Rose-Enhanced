@@ -11,8 +11,17 @@ import {
 } from "lucide-react";
 import type { CompanionSnapshot, CompanionCommand } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
+import { PresenceControl } from "../components/PresenceControl";
 import { StatusPill } from "../components/StatusPill";
-import { formatRelativeTime } from "../utils/assets";
+import { formatLeaguePatch, formatRelativeTime } from "../utils/assets";
+
+const automationFeatures = [
+  { key: "autoAccept", label: "Auto Accept" },
+  { key: "autoPick", label: "Auto Pick" },
+  { key: "autoBan", label: "Auto Ban" },
+  { key: "autoSpells", label: "Auto Spells" },
+  { key: "autoRunes", label: "Auto Runes" },
+] as const;
 
 export function DashboardPage({
   snapshot,
@@ -24,8 +33,10 @@ export function DashboardPage({
   onCommand: (command: CompanionCommand) => Promise<void>;
 }) {
   const { connection, collection, automation, audit } = snapshot;
-  const activeAutomations = (["autoAccept", "autoPick", "autoBan", "autoSpells", "autoRunes"] as const)
+  const activeAutomations = automationFeatures
+    .map((feature) => feature.key)
     .filter((feature) => automation[feature]).length;
+  const patch = formatLeaguePatch(connection.patch);
 
   return (
     <div className="page dashboard-page">
@@ -61,11 +72,17 @@ export function DashboardPage({
         </section>
       ) : null}
 
+      <PresenceControl
+        presence={snapshot.presence}
+        writable={connection.status === "connected" && connection.capabilities.presence}
+        onCommand={onCommand}
+      />
+
       <section className="metric-strip" aria-label="Collection summary">
         <Metric icon={Boxes} label="Owned skins" value={collection.progress.ownedSkins} note={`${collection.progress.completionPercent}% complete`} />
         <Metric icon={Sparkles} label="In loot" value={collection.progress.lootSkins} note="Shards and permanents" />
         <Metric icon={Bot} label="Automation" value={activeAutomations} note={automation.riskAcknowledged ? "Enabled features" : "Acknowledgement required"} />
-        <Metric icon={Clock3} label="Last sync" value={collection.updatedAt ? formatRelativeTime(collection.updatedAt) : "—"} note={connection.patch ? `Patch ${connection.patch}` : "No patch detected"} />
+        <Metric icon={Clock3} label="Last sync" value={collection.updatedAt ? formatRelativeTime(collection.updatedAt) : "—"} note={patch ? `Patch ${patch}` : "No patch detected"} {...(connection.patch ? { noteTitle: `Full client build: ${connection.patch}` } : {})} />
       </section>
 
       <div className="dashboard-grid">
@@ -112,11 +129,23 @@ export function DashboardPage({
             </div>
           ) : (
             <ul className="feature-status-list" role="list">
-              {(["autoAccept", "autoPick", "autoBan", "autoSpells", "autoRunes"] as const).map((feature) => (
-                <li key={feature}>
+              {automationFeatures.map((feature) => (
+                <li key={feature.key}>
                   <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>{feature.replace(/^auto/, "Auto ")}</span>
-                  <StatusPill tone={automation[feature] ? "positive" : "neutral"}>{automation[feature] ? "On" : "Off"}</StatusPill>
+                  <span>{feature.label}</span>
+                  <button
+                    className="overview-toggle"
+                    type="button"
+                    aria-pressed={automation[feature.key]}
+                    aria-label={`Turn ${feature.label} ${automation[feature.key] ? "off" : "on"}`}
+                    onClick={() => onCommand({
+                      type: "automation.setEnabled",
+                      feature: feature.key,
+                      enabled: !automation[feature.key],
+                    })}
+                  >
+                    {automation[feature.key] ? "On" : "Off"}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -154,16 +183,18 @@ function Metric({
   label,
   value,
   note,
+  noteTitle,
 }: {
   icon: typeof Boxes;
   label: string;
   value: number | string;
   note: string;
+  noteTitle?: string;
 }) {
   return (
     <article className="metric">
       <span className="metric__icon" aria-hidden="true"><Icon size={18} /></span>
-      <div><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+      <div><span>{label}</span><strong>{value}</strong><small title={noteTitle} aria-label={noteTitle ? `${note}. ${noteTitle}` : undefined}>{note}</small></div>
     </article>
   );
 }

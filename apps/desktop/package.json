@@ -1,6 +1,6 @@
 {
   "name": "@summonerkit/desktop",
-  "version": "0.9.0-beta.1",
+  "version": "0.11.0-beta.1",
   "private": true,
   "description": "A privacy-first Windows companion for League of Legends.",
   "author": "Mohamed Magdy",

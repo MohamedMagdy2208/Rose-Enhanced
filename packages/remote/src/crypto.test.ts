@@ -58,4 +58,18 @@ describe("encrypted remote channel", () => {
     await expect(verifyPairingProof(proof, oneTimeSecret, "room-proof", mobileKeys.publicKey)).resolves.toBe(true);
     await expect(verifyPairingProof(proof, oneTimeSecret, "room-proof", substitutedKeys.publicKey)).resolves.toBe(false);
   });
+
+  it("allows both authenticated peers to reset sequence state after a relay reconnect", async () => {
+    const desktopKeys = await generateDeviceKeys();
+    const mobileKeys = await generateDeviceKeys();
+    const desktopSession = await deriveSessionKeys("desktop", "room-reconnect", desktopKeys.privateKey, mobileKeys.publicKey);
+    const mobileSession = await deriveSessionKeys("mobile", "room-reconnect", mobileKeys.privateKey, desktopKeys.publicKey);
+    const firstDesktop = new EncryptedChannel("room-reconnect", desktopSession);
+    const firstMobile = new EncryptedChannel("room-reconnect", mobileSession);
+    await firstDesktop.open(await firstMobile.seal({ generation: 1 }));
+
+    const reconnectedDesktop = new EncryptedChannel("room-reconnect", desktopSession);
+    const reconnectedMobile = new EncryptedChannel("room-reconnect", mobileSession);
+    await expect(reconnectedDesktop.open(await reconnectedMobile.seal({ generation: 2 }))).resolves.toEqual({ generation: 2 });
+  });
 });

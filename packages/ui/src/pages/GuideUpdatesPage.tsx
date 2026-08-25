@@ -55,7 +55,7 @@ export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
           <p className="eyebrow">About</p>
           <h2 id="about-title">{PRODUCT_NAME}</h2>
           <p className="creator-line">Created and maintained by {PRODUCT_AUTHOR}.</p>
-          <p>A privacy-first Windows companion with collection, automation, ARAM, mobile control, rune recommendations, and local performance insights.</p>
+          <p>A privacy-first Windows companion with collection, automation, ARAM, mobile control, evidence-based builds, and local performance coaching.</p>
           <div className="about-links">
             <a href={PRODUCT_URLS.source} target="_blank" rel="noreferrer"><GitFork size={15} /> Source code</a>
             <a href={PRODUCT_URLS.license} target="_blank" rel="noreferrer"><Copyright size={15} /> MIT License</a>
@@ -77,7 +77,7 @@ export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
           <div className="panel__header"><div><p className="eyebrow">Feature map</p><h2 id="feature-map-title">Where to find everything</h2></div><BadgeInfo size={20} aria-hidden="true" /></div>
           <dl>
             <div><dt>Collection</dt><dd>Owned skins, chromas, favorites, wishlist, and read-only loot overlap.</dd></div>
-            <div><dt>Runes & Performance</dt><dd>Configured online recommendations and private local match aggregates.</dd></div>
+            <div><dt>Coach & Builds</dt><dd>Explainable draft choices, aggregate runes and completed builds, local report cards, and patch readiness.</dd></div>
             <div><dt>Automation</dt><dd>Risk acknowledgement, dry-run/confirm modes, profiles, and the audit timeline.</dd></div>
             <div><dt>Mobile Control</dt><dd>Pair a phone after the relay and PWA deployment are configured.</dd></div>
             <div><dt>Connection Doctor</dt><dd>Repair the League tab and understand unavailable client capabilities.</dd></div>

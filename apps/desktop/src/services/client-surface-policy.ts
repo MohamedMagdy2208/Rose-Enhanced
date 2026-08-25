@@ -2,9 +2,11 @@ import type { CompanionCommand } from "@summonerkit/contracts";
 
 const clientSurfaceCommands = new Set<CompanionCommand["type"]>([
   "desktop.open",
+  "presence.set",
   "automation.confirm",
   "automation.dismiss",
   "automation.setEnabled",
+  "profile.setChampionPriorities",
   "collection.refresh",
   "collection.toggleFavorite",
   "collection.toggleWishlist",

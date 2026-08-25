@@ -24,7 +24,9 @@ integration in one maintainable application.
 - Hybrid React interface: focused match-time pages inside the League client, with administration in the desktop app.
 - Detection and launching of user-installed Rose and Deceive applications.
 - Optional encrypted mobile PWA with queue controls, ready checks, live champion select, loadout choices, device revocation, and an opaque Cloudflare relay.
-- Recent high-elo/pro rune recommendations from an approved versioned feed, plus private per-champion performance analytics from local match history.
+- Recent aggregate runes, completed builds, draft signals, and curated patch impacts, plus private local performance coaching and report cards.
+- Built-in Online and Away presence controls with live capability detection;
+  true appear-offline remains part of the separate Deceive integration.
 
 ## Hybrid application boundary
 
@@ -34,7 +36,7 @@ engine.
 
 | Inside Rose in the League client | Desktop application only |
 | --- | --- |
-| Overview, Collection, Automation status, ARAM, quick toggles, confirmations | Profile and timing editing, risk acknowledgement, execution-mode changes |
+| Overview, Collection, Coach & Builds, Automation status, champion pick/ban fallback editing, ARAM, quick toggles, confirmations | Full profile details, queue/role and timing editing, risk acknowledgement, execution-mode changes |
 | Owned-skin selection and match-time controls | Rose/Deceive integration, Connection Doctor, plugin repair, diagnostics |
 | An **Open desktop app** handoff | Mobile pairing, device management, and advanced settings |
 
@@ -52,36 +54,53 @@ configured.
 
 The phone receives a compact, identity-free live snapshot instead of the full
 desktop collection. It can start or stop matchmaking for the existing lobby,
-answer a ready check, follow both teams and bans, hover or lock the active local
-action, and change spells, rune pages, or owned skins. Every request waits for a
-desktop result; stale or invalid actions are rejected before an LCU write.
+answer a ready check, follow both teams and bans, view three explainable draft
+choices and completed-build evidence, hover or lock the active local action,
+and change spells, rune pages, or owned skins. Every request waits for a desktop
+result; stale or invalid actions are rejected before an LCU write.
 
 SummonerKit does **not** unlock skins, inject into the game process, bypass
 Vanguard, read game memory, mutate loot, or expose a raw remote LCU proxy.
 
-## Runes and champion performance
+## Coach, builds, and champion performance
 
-The shared **Runes & Performance** page is available in both the desktop app
-and the League client tab. It combines two deliberately separate data paths:
+The shared **Coach & Builds** page is available in both the desktop app and the
+League client tab. It combines deliberately separate data paths:
 
-- Rune recommendations come from a configured HTTPS feed that aggregates
-  recent high-elo, professional, and combined samples. The UI displays patch,
-  role, sample size, pick rate, win rate, freshness, and provider provenance.
+- Runes, completed item combinations, summoner-spell pairs, and draft signals
+  come from a configured HTTPS feed of recent high-elo, professional, and
+  combined samples. The UI displays patch, role, sample size, rates, freshness,
+  and provider provenance.
 - Champion performance is calculated locally from up to the most recent 100
   completed matches exposed by the signed-in League client. It includes
   wins/losses, K/D/A, KDA, CS and CS/minute, kill participation, champion
-  damage, vision, and a role-aware 0–100 execution score.
+  damage, vision, a role-aware 0–100 execution score, per-match report cards,
+  and champion-pool coaching.
+- During a live draft, the coach ranks up to three currently valid choices. It
+  uses configured priorities, local results, aggregate samples, visible picks,
+  bans, and allied intent, and explains the evidence behind each option.
+- Curated patch impacts are limited to the user's pool. When none are supplied,
+  the UI reports whether the available recommendation evidence matches the
+  connected client patch instead of inventing a patch summary.
 
 Raw match documents, PUUIDs, Riot IDs, and summoner IDs are not written to the
-analytics cache. Only aggregate champion statistics are retained under a
-one-way account key. Applying an online recommendation creates or updates only
-a `SummonerKit · ...` rune page and never deletes a user-created page.
+analytics cache. It retains aggregate champion statistics and minimized,
+identity-free recent-match rows for the history filters under a one-way account
+key. Applying an online recommendation creates or updates only a
+`SummonerKit · ...` rune page and never deletes a user-created page.
+Build cards are read-only completed-match combinations, not an automatic item
+purchase order. SummonerKit does not write League item sets until a documented,
+non-destructive client adapter is available.
 
-For public distribution, host the feed behind a backend with a Riot production
-key instead of embedding that key in Electron. Set
-`SUMMONERKIT_BUILD_DATA_URL` and, for a private feed,
-`SUMMONERKIT_BUILD_DATA_TOKEN`. The exact v1 feed schema and aggregation
-requirements are documented in [docs/RUNE_DATA_FEED.md](docs/RUNE_DATA_FEED.md).
+For public distribution, the included server-side publisher uses a Riot
+production key and deploys anonymous aggregates beside the mobile PWA. Electron
+defaults to that first-party URL; `SUMMONERKIT_BUILD_DATA_URL` can override it
+for local or private deployments, with `SUMMONERKIT_BUILD_DATA_TOKEN` available
+for private feeds. The schema-v2 contract, schema-v1 compatibility, and
+aggregation requirements are
+documented in [docs/RUNE_DATA_FEED.md](docs/RUNE_DATA_FEED.md).
+The desktop exposes provider freshness, current-patch coverage, evidence counts,
+and the last endpoint error instead of treating a configured URL as healthy.
 
 ## Development
 
@@ -153,7 +172,7 @@ build downloads a published stable update and waits for the user to choose
 **Restart to install**. It never installs an update silently. Portable,
 development, and prerelease builds open GitHub Releases for manual installation.
 
-The current `0.9.x` line is prerelease software. Stable releases are blocked in
+The current `0.11.x` line is prerelease software. Stable releases are blocked in
 CI unless their Windows Setup executable has a valid Authenticode signature.
 
 ## Mobile relay development
@@ -170,15 +189,23 @@ npm run dev --workspace @summonerkit/mobile
 Do not commit the admin secret. The relay stores short-lived pairing metadata
 and public keys, while forwarding encrypted envelopes without decrypting them.
 Set `MOBILE_ORIGIN` in `apps/relay/wrangler.jsonc` to the deployed PWA origin.
-The desktop process requires `SUMMONERKIT_RELAY_URL`,
-`SUMMONERKIT_MOBILE_URL`, and `SUMMONERKIT_RELAY_ADMIN_SECRET` before the
-Mobile Control page enables QR pairing.
+After deploying, open **Mobile Control** and save the Worker URL, PWA URL, and
+the same administrator secret. The secret is encrypted with Windows
+`safeStorage`; environment variables remain available for unattended builds.
 
 For a local end-to-end test, use the same secret for
 `PAIRING_ADMIN_SECRET` in the Worker and
 `SUMMONERKIT_RELAY_ADMIN_SECRET` in the desktop environment. Create or join a
 League lobby on the PC first; mobile queue control intentionally does not create
 lobbies, invite players, or expose a general LCU request interface.
+
+The `relay.yml` workflow deploys the Worker when the repository contains
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and a 32-character-or-longer
+`PAIRING_ADMIN_SECRET` as GitHub Actions secrets. The phone retries short-lived
+WebSocket interruptions using the existing authenticated session; restarts,
+revocation, or session expiry deliberately require a new QR code.
+The complete secret, variable, deployment-order, and real-phone checklist is in
+[docs/MOBILE_DEPLOYMENT.md](docs/MOBILE_DEPLOYMENT.md).
 
 ## Optional Pengu Loader build
 

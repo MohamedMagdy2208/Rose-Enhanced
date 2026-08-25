@@ -1,6 +1,7 @@
 import { Download, FileWarning, LockKeyhole, RefreshCw, ServerCog } from "lucide-react";
 import type { CompanionSnapshot } from "@summonerkit/contracts";
 import { useCompanionBridge } from "../bridge/bridge-context";
+import { GuidanceHealthPanel } from "../components/GuidanceHealthPanel";
 import { StatusPill } from "../components/StatusPill";
 
 export function DiagnosticsPage({ snapshot }: { snapshot: CompanionSnapshot }) {
@@ -26,6 +27,7 @@ export function DiagnosticsPage({ snapshot }: { snapshot: CompanionSnapshot }) {
       </header>
 
       <div className="diagnostics-grid">
+        <GuidanceHealthPanel health={snapshot.insights.guidance} />
         <section className="panel">
           <div className="panel__header"><div><p className="eyebrow">Connection</p><h2>League Client API</h2></div><StatusPill tone={snapshot.connection.status === "connected" ? "positive" : "neutral"}>{snapshot.connection.status}</StatusPill></div>
           <dl className="definition-list">
