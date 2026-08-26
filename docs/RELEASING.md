@@ -29,8 +29,13 @@ generated Setup executable has a valid Authenticode signature.
    and relay `/health` endpoint. Configure repository variables
    `SUMMONERKIT_MOBILE_URL` and `SUMMONERKIT_RELAY_URL` before tagging.
 
-5. Commit the version and changelog.
-6. Create and push a tag matching the desktop package version:
+5. Verify that `LICENSE`, `NOTICE.md`, `COPYRIGHT.md`, and
+   `THIRD_PARTY_NOTICES.md` are present in the repository and in the packaged
+   Windows resources. The original SummonerKit material is source-available,
+   not MIT or otherwise open source; third-party notices must remain intact.
+
+6. Commit the version and changelog.
+7. Create and push a tag matching the desktop package version:
 
    ```powershell
    git tag v0.11.0-beta.2

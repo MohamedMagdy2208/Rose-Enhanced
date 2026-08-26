@@ -58,7 +58,7 @@ export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
           <p>A privacy-first Windows companion with collection, automation, ARAM, mobile control, evidence-based builds, and local performance coaching.</p>
           <div className="about-links">
             <a href={PRODUCT_URLS.source} target="_blank" rel="noreferrer"><GitFork size={15} /> Source code</a>
-            <a href={PRODUCT_URLS.license} target="_blank" rel="noreferrer"><Copyright size={15} /> MIT License</a>
+            <a href={PRODUCT_URLS.license} target="_blank" rel="noreferrer"><Copyright size={15} /> Source-available license</a>
           </div>
         </section>
 
@@ -86,7 +86,7 @@ export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
 
         <section className="panel panel--wide legal-summary">
           <ShieldCheck size={22} aria-hidden="true" />
-          <div><h2>Copyright © 2026 Mohamed Magdy</h2><p>SummonerKit is available under the MIT License. Third-party projects and Riot Games retain their own names, assets, trademarks, and licenses.</p><p>SummonerKit isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p></div>
+          <div><h2>Copyright © 2026 Mohamed Magdy</h2><p>Original SummonerKit material is covered by the Source-Available License. Private evaluation and running an unmodified official release are permitted; copying, public forks, redistribution, modification, and commercial use require written permission.</p><p>Third-party projects and Riot Games retain their own names, assets, trademarks, and licenses. See the full license and ownership notices in the repository.</p><p>SummonerKit isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p></div>
         </section>
       </div>
     </div>

@@ -13,7 +13,15 @@ const config: ForgeConfig = {
     asar: true,
     executableName: "SummonerKit",
     icon: windowsIcon,
-    extraResource: ["../client-tab/dist", "../client-tab/pengu", "assets"],
+    extraResource: [
+      "../client-tab/dist",
+      "../client-tab/pengu",
+      "assets",
+      "../../LICENSE",
+      "../../NOTICE.md",
+      "../../COPYRIGHT.md",
+      "../../THIRD_PARTY_NOTICES.md",
+    ],
   },
   rebuildConfig: {},
   makers: [

@@ -271,9 +271,15 @@ Read [SECURITY.md](../SECURITY.md), [PRIVACY.md](../PRIVACY.md), and
 
 Copyright © 2026 Mohamed Magdy.
 
-SummonerKit source code is released under the [MIT License](../LICENSE).
-Third-party projects and Riot Games retain their respective copyrights,
-licenses, assets, and trademarks.
+Original SummonerKit material is covered by the [SummonerKit Source-Available
+License v1.0](../LICENSE). You may privately evaluate the source and run an
+unmodified official release. Public forks or mirrors, copying into another
+product, modification, redistribution, and commercial use require written
+permission. This is not an open-source license.
+
+Read the [copyright and ownership map](../COPYRIGHT.md) and
+[third-party notices](../THIRD_PARTY_NOTICES.md). Third-party projects and Riot
+Games retain their respective copyrights, licenses, assets, and trademarks.
 
 SummonerKit isn't endorsed by Riot Games and doesn't reflect the views or
 opinions of Riot Games or anyone officially involved in producing or managing

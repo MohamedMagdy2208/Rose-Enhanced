@@ -2,7 +2,7 @@
 
 **A League companion by Mohamed Magdy.**
 
-[User guide](docs/USER_GUIDE.md) · [Releases](https://github.com/MohamedMagdy2208/SummonerKit/releases) · [Security](SECURITY.md) · [MIT License](LICENSE)
+[User guide](docs/USER_GUIDE.md) · [Releases](https://github.com/MohamedMagdy2208/SummonerKit/releases) · [Security](SECURITY.md) · [Source-available license](LICENSE)
 
 SummonerKit is a privacy-first Windows companion for League of Legends. It
 combines collection visibility, read-only loot tracking, opt-in champion-select
@@ -14,6 +14,15 @@ integration in one maintainable application.
 > Terms of Service restrict unauthorized automation. SummonerKit is not
 > endorsed by Riot Games, automation is disabled by default, and users proceed
 > at their own risk.
+
+> [!IMPORTANT]
+> SummonerKit is source-available, not open source. The original project code,
+> docs, tests, configuration, and branding may be privately evaluated and the
+> official unmodified release may be run, but copying into another project,
+> public forks or mirrors, redistribution, modification, and commercial use
+> require written permission. Third-party components keep their own licenses.
+> Read [LICENSE](LICENSE), [COPYRIGHT.md](COPYRIGHT.md), and
+> [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before sharing a build.
 
 ## Current scope
 
@@ -264,8 +273,15 @@ See [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md),
 
 ## License
 
-Copyright © 2026 Mohamed Magdy. SummonerKit is released under the
-[MIT License](LICENSE).
+Copyright © 2026 Mohamed Magdy. Original SummonerKit material is covered by
+the [SummonerKit Source-Available License v1.0](LICENSE). This is a
+proprietary, source-available license, not an open-source license; no public
+fork, reuse, redistribution, modification, or commercial deployment is
+permitted without written permission.
+
+See [COPYRIGHT.md](COPYRIGHT.md) for the ownership map and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for components that retain
+their own licenses.
 
 SummonerKit isn't endorsed by Riot Games and doesn't reflect the views or
 opinions of Riot Games or anyone officially involved in producing or managing

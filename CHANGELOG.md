@@ -3,6 +3,16 @@
 All notable user-visible changes are recorded here. Versions follow Semantic
 Versioning while the project is in prerelease.
 
+## [Unreleased]
+
+### Changed
+
+- Replaced the prior MIT grant for original SummonerKit material with the
+  SummonerKit Source-Available License v1.0. Private evaluation and running an
+  unmodified official release remain permitted; reuse, public forks,
+  redistribution, modification, and commercial deployment now require written
+  permission. Third-party licenses remain unchanged.
+
 ## [0.11.0-beta.1] - 2026-08-25
 
 ### Added
