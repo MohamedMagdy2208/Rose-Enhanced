@@ -40,6 +40,7 @@ import { AppLogger } from "./services/logger";
 import { PenguManager } from "./services/pengu-manager";
 import { PresenceService } from "./services/presence-service";
 import { RemoteService } from "./services/remote-service";
+import { applyReadyCheckWindowPolicy } from "./services/ready-check-window-policy";
 import { SettingsStore } from "./services/settings-store";
 import { UpdateService } from "./services/update-service";
 
@@ -142,6 +143,17 @@ async function bootstrap(): Promise<void> {
   });
   const unregisterIpc = registerIpc({ window: mainWindow, store, router, remote, updates, logger });
 
+  let readyCheckActive = false;
+  const handleReadyCheckWindowPolicy = (): void => {
+    readyCheckActive = applyReadyCheckWindowPolicy({
+      previousActive: readyCheckActive,
+      active: store.getSnapshot().session.readyCheck.active,
+      window: mainWindow,
+      notify: notifyUser,
+    });
+  };
+  store.on("changed", handleReadyCheckWindowPolicy);
+
   lcu.on("state", (state) => store.update((snapshot) => { snapshot.connection = state; }));
   clientTabActivation.start();
   collection.start();
@@ -158,6 +170,7 @@ async function bootstrap(): Promise<void> {
   app.on("before-quit", () => {
     isQuitting = true;
     disposeTray();
+    store.off("changed", handleReadyCheckWindowPolicy);
     clientTabActivation.stop();
     automation.stop();
     leagueSession.stop();

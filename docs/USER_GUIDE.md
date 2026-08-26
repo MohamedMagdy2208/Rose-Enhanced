@@ -99,6 +99,12 @@ execution mode, and **Disable all automation**. The menu mirrors current app
 state. Presence items are unavailable until League is connected, and automation
 items remain locked until the desktop risk acknowledgement is complete.
 
+When a new League ready check starts, SummonerKit hides its desktop window and
+shows a Windows notification so it cannot cover the League client. The engine
+continues running in the tray for automation, the League tab, and mobile
+control. Answer in League, on the client tab, or on a paired phone; double-click
+the tray icon to reopen SummonerKit afterward.
+
 ### Collection
 
 - Browse champions, skins, and chromas.

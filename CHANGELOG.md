@@ -12,6 +12,9 @@ Versioning while the project is in prerelease.
   unmodified official release remain permitted; reuse, public forks,
   redistribution, modification, and commercial deployment now require written
   permission. Third-party licenses remain unchanged.
+- A new ready check now hides the desktop window to the tray and shows a native
+  Windows notification, keeping the League client visible while the local
+  engine, client tab, and mobile channel continue running.
 
 ## [0.11.0-beta.1] - 2026-08-25
 

@@ -170,6 +170,10 @@ Home or Lobby. The reload is deferred during matchmaking, ready check, champion
 select, and active games. The launcher deliberately does not start Rose or
 League for you.
 
+When a ready check starts, the desktop window hides to the tray and a Windows
+notification appears so SummonerKit does not cover the League client. The local
+engine stays running; double-click the tray icon to reopen the desktop app.
+
 The complete installation, feature, mobile pairing, update, and troubleshooting
 walkthrough is in the [SummonerKit user guide](docs/USER_GUIDE.md).
 
