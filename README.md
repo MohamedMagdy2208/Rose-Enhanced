@@ -2,7 +2,7 @@
 
 **A League companion by Mohamed Magdy.**
 
-[User guide](docs/USER_GUIDE.md) · [Releases](https://github.com/MohamedMagdy2208/SummonerKit/releases) · [Security](SECURITY.md) · [Source-available license](LICENSE)
+[User guide](docs/USER_GUIDE.md) · [Brand guide](docs/branding/BRAND_GUIDE.md) · [Releases](https://github.com/MohamedMagdy2208/SummonerKit/releases) · [Security](SECURITY.md) · [Source-available license](LICENSE)
 
 SummonerKit is a privacy-first Windows companion for League of Legends. It
 combines collection visibility, read-only loot tracking, opt-in champion-select
@@ -36,17 +36,19 @@ integration in one maintainable application.
 - Recent aggregate runes, completed builds, draft signals, and curated patch impacts, plus private local performance coaching and report cards.
 - Built-in Online and Away presence controls with live capability detection;
   true appear-offline remains part of the separate Deceive integration.
+- A desktop-only Test Lab that rehearses ready-check and champion-select
+  guardrails with the production decision engine and zero live LCU writes.
 
 ## Hybrid application boundary
 
-The League surface is an authenticated view backed by the separate desktop and
-tray process. It does not hold LCU credentials or start its own automation
-engine.
+The League surface is an authenticated SummonerKit view backed by the separate
+desktop and tray process. It does not hold LCU credentials or start its own
+automation engine.
 
-| Inside Rose in the League client | Desktop application only |
+| SummonerKit client tab in League | Desktop application only |
 | --- | --- |
 | Overview, Collection, Coach & Builds, Automation status, champion pick/ban fallback editing, ARAM, quick toggles, confirmations | Full profile details, queue/role and timing editing, risk acknowledgement, execution-mode changes |
-| Owned-skin selection and match-time controls | Rose/Deceive integration, Connection Doctor, plugin repair, diagnostics |
+| Owned-skin selection and match-time controls | Rose/Deceive integration, Connection Doctor, Test Lab, plugin repair, diagnostics |
 | An **Open desktop app** handoff | Mobile pairing, device management, and advanced settings |
 
 The loopback bridge enforces this split with a command allowlist; hiding a
@@ -118,6 +120,7 @@ Requirements:
 - Windows 10/11 x64
 - Node.js 22 or newer
 - npm 11 or newer
+- OpenSSL 3 (used only by the disposable HTTPS/WSS LCU integration test)
 - League of Legends for live integration testing
 
 ```powershell
@@ -130,6 +133,7 @@ Run the verification suite:
 ```powershell
 npm run typecheck
 npm test
+npm run test:coverage
 npm run build
 ```
 
@@ -138,6 +142,14 @@ Create Windows artifacts:
 ```powershell
 npm run make
 ```
+
+That command writes the direct x64 executable to
+`apps/desktop/out/SummonerKit-win32-x64/SummonerKit.exe`, a portable ZIP to
+`apps/desktop/out/make/zip/win32/x64/`, and a Windows Setup installer to
+`apps/desktop/out/make/squirrel.windows/x64/SummonerKit-win32-x64-Setup.exe`.
+The installer creates the normal Start Menu and desktop shortcuts. The direct
+executable is useful for local testing; use the Setup installer for everyday
+use and one-click updates.
 
 Unsigned artifacts are development/prerelease builds. Stable public releases
 must be code-signed and published without silent updates.
@@ -160,6 +172,13 @@ For the most reliable first setup, use this order:
 1. Open **SummonerKit** with the launcher and leave it running in the tray.
 2. Open the separately installed **Rose** application.
 3. Start the **League client** so Pengu loads the SummonerKit tab.
+
+To start SummonerKit automatically, open **Setup** and enable **Start with
+Windows**. The engine starts hidden in the tray at sign-in and keeps watching
+for League. Enable **Open when League connects** as well if you want the
+desktop window to appear when League is detected. Both options are also
+available under **Startup** in the tray menu. SummonerKit does not start Rose,
+the League client, or the game process.
 
 After the client tab has been installed and loaded once, the exact order of the
 first two applications is less important. SummonerKit must still be running
@@ -211,6 +230,13 @@ For a local end-to-end test, use the same secret for
 `SUMMONERKIT_RELAY_ADMIN_SECRET` in the desktop environment. Create or join a
 League lobby on the PC first; mobile queue control intentionally does not create
 lobbies, invite players, or expose a general LCU request interface.
+
+On the desktop, open **Mobile Control**, choose **Create pairing code**, and
+scan the displayed QR code with the phone camera. The QR contains a one-time
+link that expires after three minutes and is cleared as soon as the phone is
+paired. If the camera cannot scan it, use **Copy link if the camera cannot
+scan** and open that private link on the phone. Never share a screenshot or
+the copied link; it grants temporary access to the current desktop session.
 
 The `relay.yml` workflow deploys the Worker when the repository contains
 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and a 32-character-or-longer

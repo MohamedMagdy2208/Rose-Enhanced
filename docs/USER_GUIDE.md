@@ -52,6 +52,20 @@ repair may reload only the League UI when the current phase is Home or Lobby.
 The reload is deferred during matchmaking, ready check, champion select, and an
 active game.
 
+### Automatic startup
+
+Open **Setup** and enable **Start with Windows** to launch the local engine
+hidden in the tray whenever you sign in. Its existing lockfile monitor then
+connects automatically when League starts. Enable **Open when League connects**
+if you want the desktop window to appear after that connection; leave it off
+for a tray-only workflow. The same checkboxes are available from the
+SummonerKit tray icon under **Startup**.
+
+These preferences only start SummonerKit. They never launch Rose, the League
+client, or the game process. If you enable only **Open when League connects**,
+the option works while SummonerKit is already running; enable both options for
+a hands-free Windows sign-in flow.
+
 ## Install or repair the League client tab
 
 The in-client surface requires Pengu Loader. SummonerKit reuses Rose's Pengu
@@ -84,7 +98,8 @@ automation status, recent audit events, and shortcuts to major pages.
 After the automation risk warning has been acknowledged, each **On** or **Off**
 pill in the Overview automation card is a button. Use it to change that feature
 without leaving the dashboard; the same validation and audit rules as the full
-Automation page still apply.
+Automation page still apply. When any feature is active, **Stop all** disables
+every automation feature in one action.
 
 The dashboard also provides **Online** and **Away** controls when the connected
 League patch exposes its chat-profile endpoint. SummonerKit waits for League to
@@ -97,7 +112,9 @@ Right-click the SummonerKit icon in the Windows system tray for quick access to
 **Online** and **Away**, individual automation feature checkboxes, automation
 execution mode, and **Disable all automation**. The menu mirrors current app
 state. Presence items are unavailable until League is connected, and automation
-items remain locked until the desktop risk acknowledgement is complete.
+enable and mode items remain locked until the desktop risk acknowledgement is
+complete. **Disable all automation** remains available whenever any feature is
+active.
 
 When a new League ready check starts, SummonerKit hides its desktop window and
 shows a Windows notification so it cannot cover the League client. The engine
@@ -173,6 +190,26 @@ The ordered champion plan can be edited from **Automation** in either the
 desktop app or the Rose client tab. Queue, role, spells, runes, timing, risk
 acknowledgement, and execution-mode changes remain desktop-only.
 
+### Test Lab
+
+Open **Test Lab** in the desktop app to rehearse automation without a running
+League client. Choose a saved profile or the built-in unsaved demo, select a
+pick or ban action, and run one of the sanitized scenarios. The timeline uses
+the same pure decision engine as live automation while its isolation boundary
+guarantees zero LCU writes.
+
+Use the scenarios to confirm that a configured profile:
+
+- selects a valid primary or explains why it chose a backup;
+- protects teammate pick and ban intent;
+- yields immediately after a manual champion change;
+- hovers without locking when League does not provide a reliable timer; and
+- safely skips when no configured choice remains.
+
+Test Lab is a local rehearsal, not proof that a particular League patch still
+supports every endpoint. Complete a non-ranked smoke test before marking a new
+patch as supported.
+
 ### ARAM
 
 Save favorite champions, see which favorites are currently on the bench, swap
@@ -200,18 +237,25 @@ repository deployment checklist is in
 [MOBILE_DEPLOYMENT.md](MOBILE_DEPLOYMENT.md).
 
 1. Open **Mobile Control** on the desktop.
-2. Create a short-lived QR pairing code.
-3. Scan it with the phone and approve the connection.
+2. Create a short-lived QR pairing code. The desktop shows a live expiry
+   countdown and clears the code when it expires or is claimed.
+3. Scan it with the phone camera and approve the connection. If the camera
+   cannot scan, copy the private link below the QR code and open it on the
+   phone instead.
 4. Use the phone to control the existing lobby queue, ready check, champion
    select, spells, rune page, owned skin, and ARAM bench. During champion select,
    the phone also shows the same three identity-free draft choices and completed
-   build evidence.
+   build evidence. **Stop automation** can disable every opted-in automation
+   feature, but the phone cannot enable automation or change its execution mode.
 5. Optionally install the PWA and enable local queue and draft alerts.
 
 Every mobile command is encrypted, allowlisted, and revalidated on the PC.
 Chat, invites, raw LCU requests, and broad social controls are not exposed.
 Temporary phone network interruptions retry automatically. A desktop restart,
 revoked device, or expired session requires a fresh QR code.
+Treat the QR image and copied link like a temporary password: do not post or
+send them to anyone else. The phone and PC do not need to be on the same Wi-Fi
+when the relay is deployed; both need an internet connection to reach it.
 
 ### Connection Doctor and Diagnostics
 

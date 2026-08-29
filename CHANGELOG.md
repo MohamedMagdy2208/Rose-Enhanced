@@ -5,6 +5,14 @@ Versioning while the project is in prerelease.
 
 ## [Unreleased]
 
+### Added
+
+- Added a desktop-only Test Lab that runs the real automation decision engine
+  against sanitized ready-check and champion-select scenarios. It verifies
+  primary choices, backups, teammate-intent protection, manual overrides,
+  missing timers, and exhausted priorities without connecting to League or
+  issuing an LCU write.
+
 ### Changed
 
 - Replaced the prior MIT grant for original SummonerKit material with the
@@ -15,6 +23,37 @@ Versioning while the project is in prerelease.
 - A new ready check now hides the desktop window to the tray and shows a native
   Windows notification, keeping the League client visible while the local
   engine, client tab, and mobile channel continue running.
+- Hardened the local and mobile boundaries: validated loopback ports and
+  origins, strict bridge command envelopes, bounded HTTP/WebSocket payloads,
+  safer plugin-template encoding, stricter League lockfile parsing, pinned
+  relay socket endpoints, bounded LCU and encrypted envelopes, strict
+  client-tab authorization, pairing request timeouts without redirects, and
+  additional relay response security headers. CI checkouts no longer persist
+  the workflow token in the repository configuration.
+- Added opt-in Windows startup registration with a hidden tray launch, automatic
+  League reconnect detection, optional desktop-window reveal, and matching
+  controls in Setup and the tray menu.
+- Added a Mobile Control shortcut on Overview plus a live QR expiry countdown;
+  claimed or expired pairing secrets are cleared from the desktop UI and active
+  pairing state, with a private-link fallback when a phone camera cannot scan
+  the code.
+- Added one atomic **Disable all automation** action to the desktop, League tab,
+  tray, and encrypted phone control. The phone can stop automation but cannot
+  enable it. League-tab snapshots now omit desktop paths, configured service
+  URLs, account cache keys, and real device identifiers; concurrent settings
+  writes are serialized, and invalid settings are preserved before recovery.
+- Ready-check responses now send the LCU-compatible empty JSON payload and
+  confirm the live player response when League applies the action but leaves
+  the HTTP request open. Manual desktop/mobile responses use the same adapter.
+- Mobile pairing links now react to same-page QR navigation immediately instead
+  of requiring a browser reload.
+- CI now enforces coverage floors for desktop services, automation core, and
+  mobile pairing paths, including a real authenticated HTTPS/WebSocket fake LCU.
+  GitHub vulnerability alerts, automated fixes, and CodeQL analysis now cover
+  repository and dependency regressions alongside Dependabot.
+- Converted the Electron Forge Vite entry configurations to explicit ESM
+  modules and preserved the single-file preload build with Vite's current
+  `codeSplitting: false` option, removing deprecated build warnings.
 
 ## [0.11.0-beta.1] - 2026-08-25
 
