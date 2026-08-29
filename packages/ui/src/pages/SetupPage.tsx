@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Boxes, Check, Cloud, FlaskConical, Gamepad2, PlugZap, ShieldCheck, Smartphone, Wrench } from "lucide-react";
+import { Boxes, Check, Cloud, FlaskConical, Gamepad2, PlugZap, Power, ShieldCheck, Smartphone, Wrench } from "lucide-react";
 import type { CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import type { PageId } from "../components/AppShell";
 import { StatusPill } from "../components/StatusPill";
+import { Toggle } from "../components/Toggle";
 import { formatLeaguePatch } from "../utils/assets";
 
 type SetupTone = "positive" | "warning" | "neutral";
@@ -61,6 +62,27 @@ export function SetupPage({
         <div><span>Setup health</span><strong>{readyCount}/{steps.length} ready</strong></div>
         <div className="progress-track"><span style={{ width: `${readyCount / steps.length * 100}%` }} /></div>
         <small>{testedAt ? `Last tested ${new Date(testedAt).toLocaleTimeString()}` : "Run the check after opening League."}</small>
+      </section>
+
+      <section className="panel setup-startup" aria-labelledby="startup-settings-title">
+        <div className="panel__header">
+          <div><p className="eyebrow">Startup behavior</p><h2 id="startup-settings-title">Open alongside Windows and League</h2></div>
+          <Power size={19} aria-hidden="true" />
+        </div>
+        <p className="setup-startup__lede">SummonerKit can stay quiet in the tray, reconnect to League when it appears, and optionally show the desktop window.</p>
+        <Toggle
+          checked={snapshot.startup.launchOnWindowsStartup}
+          label="Start with Windows"
+          description="Launch the local engine hidden in the tray when you sign in."
+          onChange={(enabled) => void onCommand({ type: "startup.setEnabled", setting: "launchOnWindowsStartup", enabled })}
+        />
+        <Toggle
+          checked={snapshot.startup.openOnLeagueDetected}
+          label="Open when League connects"
+          description="Reveal the desktop window after the background engine detects League."
+          onChange={(enabled) => void onCommand({ type: "startup.setEnabled", setting: "openOnLeagueDetected", enabled })}
+        />
+        <small className="setup-startup__note">For a hands-free League launch, enable both options. The app never starts Rose or the League game for you.</small>
       </section>
 
       <ol className="setup-checks">

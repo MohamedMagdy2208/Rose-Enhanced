@@ -7,6 +7,7 @@ describe("client surface command policy", () => {
     { type: "desktop.open" },
     { type: "presence.set", availability: "away" },
     { type: "automation.setEnabled", feature: "autoAccept", enabled: true },
+    { type: "automation.disableAll" },
     { type: "profile.setChampionPriorities", profileId: "default", pickPriority: [103, 7], banPriority: [238, 157] },
     { type: "automation.confirm", pendingId: "e95f0048-7437-47c4-aa20-e630507dfe55" },
     { type: "collection.toggleFavorite", skinId: 103001 },

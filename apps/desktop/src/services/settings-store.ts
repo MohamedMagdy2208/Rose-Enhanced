@@ -25,6 +25,11 @@ const automationSettingsSchema = z.object({
   autoRunes: z.boolean(),
 });
 
+const startupSettingsSchema = z.object({
+  launchOnWindowsStartup: z.boolean(),
+  openOnLeagueDetected: z.boolean(),
+});
+
 const remoteDeviceSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(80),
@@ -67,6 +72,8 @@ function storedRemoteDevices(candidate: unknown): PersistedSettings["remoteDevic
 function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, bridgeToken: string, remoteAdminSecret: string | null): PersistedSettings {
   const storedAutomation = raw.automation && typeof raw.automation === "object" ? raw.automation : {};
   const automation = automationSettingsSchema.safeParse({ ...fallback.automation, ...storedAutomation });
+  const storedStartup = raw.startup && typeof raw.startup === "object" ? raw.startup : {};
+  const startup = startupSettingsSchema.safeParse({ ...fallback.startup, ...storedStartup });
   return {
     schemaVersion: 3,
     leaguePath: storedPath(raw.leaguePath),
@@ -76,6 +83,7 @@ function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, brid
     favorites: storedIds(raw.favorites),
     wishlist: storedIds(raw.wishlist),
     aramFavoriteChampionIds: storedIds(raw.aramFavoriteChampionIds),
+    startup: startup.success ? startup.data : fallback.startup,
     remoteDevices: storedRemoteDevices(raw.remoteDevices),
     remoteConfiguration: {
       relayUrl: storedPath(raw.remoteConfiguration?.relayUrl),
@@ -92,6 +100,7 @@ function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, brid
 export class SettingsStore {
   private readonly filePath: string;
   private current!: PersistedSettings;
+  private updateQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly logger: AppLogger) {
     this.filePath = path.join(app.getPath("userData"), "settings.json");
@@ -99,16 +108,28 @@ export class SettingsStore {
 
   async load(): Promise<PersistedSettings> {
     const fallback = createDefaultSettings(randomBytes(32).toString("base64url"));
+    let source: string | null = null;
     try {
-      const candidate = JSON.parse(await readFile(this.filePath, "utf8")) as unknown;
-      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Settings file is invalid.");
-      const raw = candidate as SettingsOnDisk;
-      const bridgeToken = this.readToken(raw) ?? fallback.bridgeToken;
-      const remoteAdminSecret = this.readRemoteAdminSecret(raw);
-      this.current = settingsFromDisk(raw, fallback, bridgeToken, remoteAdminSecret);
+      source = await readFile(this.filePath, "utf8");
     } catch (error) {
-      this.logger.info("Creating new settings store", { reason: String(error) });
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    if (source === null) {
+      this.logger.info("Creating new settings store", { reason: "Settings file does not exist." });
       this.current = fallback;
+    } else {
+      try {
+        const candidate = JSON.parse(source) as unknown;
+        if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Settings file is invalid.");
+        const raw = candidate as SettingsOnDisk;
+        const bridgeToken = this.readToken(raw) ?? fallback.bridgeToken;
+        const remoteAdminSecret = this.readRemoteAdminSecret(raw);
+        this.current = settingsFromDisk(raw, fallback, bridgeToken, remoteAdminSecret);
+      } catch (error) {
+        const backupName = await this.preserveInvalidSettings(source);
+        this.logger.warn("Invalid settings were preserved before reset", { backupName, reason: String(error) });
+        this.current = fallback;
+      }
     }
     await this.save(this.current);
     return this.get();
@@ -119,10 +140,14 @@ export class SettingsStore {
   }
 
   async update(mutator: (settings: PersistedSettings) => void): Promise<PersistedSettings> {
-    const next = this.get();
-    mutator(next);
-    await this.save(next);
-    return this.get();
+    const operation = this.updateQueue.then(async () => {
+      const next = this.get();
+      mutator(next);
+      await this.save(next);
+      return this.get();
+    });
+    this.updateQueue = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   async rotateBridgeToken(): Promise<PersistedSettings> {
@@ -157,6 +182,16 @@ export class SettingsStore {
     return typeof raw.remoteAdminSecret === "string" && raw.remoteAdminSecret.length >= 32
       ? raw.remoteAdminSecret
       : null;
+  }
+
+  private async preserveInvalidSettings(source: string): Promise<string> {
+    const backupName = `settings.invalid-${Date.now()}-${randomBytes(4).toString("hex")}.json`;
+    await writeFile(path.join(path.dirname(this.filePath), backupName), source, {
+      encoding: "utf8",
+      mode: 0o600,
+      flag: "wx",
+    });
+    return backupName;
   }
 
   private async save(settings: PersistedSettings): Promise<void> {

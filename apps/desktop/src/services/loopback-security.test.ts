@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   allowedLoopbackOrigin,
+  bridgePortFromEnvironment,
   bridgeSessionFromProtocols,
   bridgeSessionProtocol,
   expectedLoopbackHost,
@@ -15,8 +16,21 @@ describe("loopback bridge security", () => {
   });
 
   it.each([
-    ["summonerkit-v1, summonerkit-session.abc123", "abc123"],
+    [undefined, 17_654],
+    ["17654", 17_654],
+  ])("normalizes a valid bridge port %s", (candidate, expected) => {
+    expect(bridgePortFromEnvironment(candidate)).toBe(expected);
+  });
+
+  it.each(["0", "1023", "65536", "17.654", " 17654 ", "17654\n"])("rejects an unsafe bridge port %s", (candidate) => {
+    expect(() => bridgePortFromEnvironment(candidate)).toThrow(/bridge.?port|BRIDGE_PORT/iu);
+  });
+
+  it.each([
+    ["summonerkit-v1, summonerkit-session.abcdefghijklmnopqrstuvwxyz123456", "abcdefghijklmnopqrstuvwxyz123456"],
     ["summonerkit-v1", null],
+    ["summonerkit-v1, summonerkit-session.short", null],
+    ["summonerkit-v1, summonerkit-session.abcdefghijklmnopqrstuvwxyz12, summonerkit-session.other-session-id", null],
     [undefined, null],
   ])("extracts a one-use session from %s", (header, expected) => {
     expect(bridgeSessionFromProtocols(header)).toBe(expected);

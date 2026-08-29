@@ -8,6 +8,7 @@ import {
 import type { CompanionStore } from "./companion-store";
 import type { SettingsStore } from "./settings-store";
 import type { AppLogger } from "./logger";
+import { bridgePortFromEnvironment } from "./loopback-security";
 
 async function exists(candidate: string): Promise<boolean> {
   try {
@@ -64,12 +65,15 @@ export class PenguManager {
     await mkdir(destination, { recursive: true });
     const template = await readFile(templatePath, "utf8");
     const navigationIcon = await readFile(this.navigationIconPath());
+    const bridgePort = bridgePortFromEnvironment();
+    const bridgeToken = this.settings.get().bridgeToken;
+    const navigationDataUrl = `data:image/png;base64,${navigationIcon.toString("base64")}`;
     const generated = template
-      .replaceAll("__SUMMONERKIT_TOKEN__", this.settings.get().bridgeToken)
-      .replaceAll("__SUMMONERKIT_PORT__", process.env.SUMMONERKIT_BRIDGE_PORT ?? "17654")
-      .replaceAll("__SUMMONERKIT_NAV_ICON__", `data:image/png;base64,${navigationIcon.toString("base64")}`)
-      .replaceAll("__SUMMONERKIT_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
-      .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
+      .replaceAll('"__SUMMONERKIT_TOKEN__"', JSON.stringify(bridgeToken))
+      .replaceAll('"__SUMMONERKIT_PORT__"', JSON.stringify(String(bridgePort)))
+      .replaceAll('"__SUMMONERKIT_NAV_ICON__"', JSON.stringify(navigationDataUrl))
+      .replaceAll('"__SUMMONERKIT_PLUGIN_VERSION__"', JSON.stringify(CLIENT_TAB_PLUGIN_VERSION))
+      .replaceAll('"__SUMMONERKIT_PROTOCOL_VERSION__"', JSON.stringify(String(CLIENT_TAB_PROTOCOL_VERSION)));
     await writeFile(path.join(destination, "index.js"), generated, { encoding: "utf8", mode: 0o600 });
     await this.removePluginDirectory(pluginRoot, this.legacyPluginName);
     this.store.update((snapshot) => {

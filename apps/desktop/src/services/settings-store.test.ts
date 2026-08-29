@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -64,5 +64,52 @@ describe("settings secret storage", () => {
   it("refuses plaintext secret storage in packaged builds", async () => {
     electronState.encryptionAvailable = false;
     await expect(new SettingsStore(logger).load()).rejects.toThrow("Windows credential encryption is unavailable");
+  });
+
+  it("preserves startup preferences across reloads", async () => {
+    const store = new SettingsStore(logger);
+    await store.load();
+    await store.update((settings) => {
+      settings.startup.launchOnWindowsStartup = true;
+      settings.startup.openOnLeagueDetected = true;
+    });
+
+    const reloaded = new SettingsStore(logger);
+    expect((await reloaded.load()).startup).toEqual({
+      launchOnWindowsStartup: true,
+      openOnLeagueDetected: true,
+    });
+  });
+
+  it("preserves an invalid settings file before creating safe defaults", async () => {
+    const invalidSource = '{"automation":';
+    await writeFile(path.join(electronState.userData, "settings.json"), invalidSource, "utf8");
+
+    const settings = await new SettingsStore(logger).load();
+    const backupName = (await readdir(electronState.userData)).find((name) => name.startsWith("settings.invalid-"));
+
+    expect(backupName).toBeDefined();
+    if (!backupName) throw new Error("The invalid settings backup was not created.");
+    expect(await readFile(path.join(electronState.userData, backupName), "utf8")).toBe(invalidSource);
+    expect(settings.automation.autoAccept).toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Invalid settings were preserved before reset",
+      expect.objectContaining({ backupName }),
+    );
+  });
+
+  it("serializes simultaneous updates so independent preferences are not lost", async () => {
+    const store = new SettingsStore(logger);
+    await store.load();
+
+    await Promise.all([
+      store.update((settings) => { settings.startup.launchOnWindowsStartup = true; }),
+      store.update((settings) => { settings.startup.openOnLeagueDetected = true; }),
+    ]);
+
+    expect(store.get().startup).toEqual({
+      launchOnWindowsStartup: true,
+      openOnLeagueDetected: true,
+    });
   });
 });

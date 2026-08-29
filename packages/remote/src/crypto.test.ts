@@ -4,6 +4,7 @@ import {
   deriveSessionKeys,
   EncryptedChannel,
   generateDeviceKeys,
+  parseEncryptedEnvelope,
   publicKeyFingerprint,
   verifyPairingProof,
 } from "./crypto";
@@ -71,5 +72,21 @@ describe("encrypted remote channel", () => {
     const reconnectedDesktop = new EncryptedChannel("room-reconnect", desktopSession);
     const reconnectedMobile = new EncryptedChannel("room-reconnect", mobileSession);
     await expect(reconnectedDesktop.open(await reconnectedMobile.seal({ generation: 2 }))).resolves.toEqual({ generation: 2 });
+  });
+
+  it.each([
+    { sequence: 0 },
+    { nonce: "not-a-nonce" },
+    { ciphertext: "A".repeat(128 * 1024 + 1) },
+  ])("rejects malformed encrypted envelope fields", (change) => {
+    const envelope = {
+      version: 1 as const,
+      roomId: "room-envelope",
+      direction: "desktop-to-mobile" as const,
+      sequence: 1,
+      nonce: "A".repeat(16),
+      ciphertext: "A",
+    };
+    expect(() => parseEncryptedEnvelope({ ...envelope, ...change })).toThrow();
   });
 });

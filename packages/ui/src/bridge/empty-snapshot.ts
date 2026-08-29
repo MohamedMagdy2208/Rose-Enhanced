@@ -59,6 +59,10 @@ export const emptySnapshot: CompanionSnapshot = {
     autoSpells: false,
     autoRunes: false,
   },
+  startup: {
+    launchOnWindowsStartup: false,
+    openOnLeagueDetected: false,
+  },
   pendingAutomation: [],
   profiles: [],
   audit: [],
@@ -85,7 +89,7 @@ export const emptySnapshot: CompanionSnapshot = {
     },
     {
       id: "pengu",
-      name: "Client tab",
+      name: "SummonerKit client tab",
       installed: false,
       running: false,
       managedProcess: false,

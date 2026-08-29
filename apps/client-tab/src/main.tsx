@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { PRODUCT_NAME } from "@summonerkit/contracts";
 import { SummonerKitApp, emptySnapshot } from "@summonerkit/ui";
 import { assertCurrentProtocol, receiveBridgeAuthorization } from "./bridge-auth";
 import { WebSocketBridge } from "./websocket-bridge";
@@ -20,13 +21,13 @@ try {
     </StrictMode>,
   );
 } catch (error) {
-  const message = error instanceof Error ? error.message : "The SummonerKit bridge could not start.";
+  const message = error instanceof Error ? error.message : `The ${PRODUCT_NAME} bridge could not start.`;
   createRoot(container).render(
     <main className="client-startup-error" role="alert">
       <p className="eyebrow">Connection doctor</p>
       <h1>Client integration needs attention</h1>
       <p>{message}</p>
-      <p>Open SummonerKit on Windows, choose Diagnostics, and run Repair &amp; reload. Active games and champion select are never interrupted.</p>
+      <p>Open {PRODUCT_NAME} on Windows, choose Diagnostics, and run Repair &amp; reload. Active games and champion select are never interrupted.</p>
     </main>,
   );
 }

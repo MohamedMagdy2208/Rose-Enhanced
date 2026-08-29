@@ -8,7 +8,7 @@ import type {
   RemotePairingOffer,
 } from "@summonerkit/contracts";
 import { companionCommandSchema } from "@summonerkit/contracts";
-import { draftCoachChoices } from "@summonerkit/core";
+import { draftCoachChoices, redactSensitive } from "@summonerkit/core";
 import { deriveSessionKeys, EncryptedChannel, generateDeviceKeys, publicKeyFingerprint, remoteWebSocketProtocols, verifyPairingProof, type EncryptedEnvelope } from "@summonerkit/remote";
 import QRCode from "qrcode";
 import WebSocket from "ws";
@@ -18,25 +18,25 @@ import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";
 
 const createRoomResponseSchema = z.object({
-  roomId: z.string().min(8).max(128),
-  accessToken: z.string().min(32).max(256),
+  roomId: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/u),
+  accessToken: z.string().regex(/^[A-Za-z0-9_-]{32,256}$/u),
   expiresAt: z.string().datetime(),
-  websocketUrl: z.string().url(),
-});
+  websocketUrl: z.string().url().max(2_048),
+}).strict();
 
 const peerKeySchema = z.object({
   kind: z.literal("peer-key"),
   deviceId: z.string().uuid(),
   deviceName: z.string().trim().min(1).max(80),
   publicKey: z.record(z.string(), z.unknown()),
-  pairingProof: z.string().min(32).max(256),
-});
+  pairingProof: z.string().regex(/^[A-Za-z0-9_-]{43}$/u),
+}).strict();
 
 const remoteMessageSchema = z.object({
   kind: z.literal("command"),
   id: z.string().uuid(),
   command: companionCommandSchema,
-});
+}).strict();
 
 const relayHealthSchema = z.object({
   status: z.literal("ok"),
@@ -47,8 +47,11 @@ const relayHealthSchema = z.object({
 }).strict();
 
 const MAX_REMOTE_PLAINTEXT_BYTES = 44 * 1024;
+const MAX_REMOTE_FRAME_BYTES = 64 * 1024;
+const MAX_REMOTE_ERROR_LENGTH = 240;
 
 const REMOTE_COMMANDS = new Set<CompanionCommand["type"]>([
+  "automation.disableAll",
   "readyCheck.accept",
   "readyCheck.decline",
   "queue.start",
@@ -144,7 +147,7 @@ export class RemoteService {
   }
 
   get configured(): boolean {
-    return Boolean(this.relayUrl && this.mobileUrl && this.adminSecret && this.adminSecret.length >= 32 && secureRelayUrl(this.relayUrl) && secureRelayUrl(this.mobileUrl));
+    return Boolean(this.relayUrl && this.mobileUrl && this.adminSecret && this.adminSecret.length >= 32 && secureRelayUrl(this.relayUrl) && secureMobileUrl(this.mobileUrl));
   }
 
   private configurationError(): string {
@@ -157,7 +160,7 @@ export class RemoteService {
 
   async configure(relayUrl: string, mobileUrl: string, adminSecret: string): Promise<void> {
     const normalizedRelay = relayUrl.replace(/\/$/u, "");
-    if (!secureRelayUrl(normalizedRelay) || !secureRelayUrl(mobileUrl)) {
+    if (!secureRelayUrl(normalizedRelay) || !secureMobileUrl(mobileUrl)) {
       throw new Error("The relay and mobile URLs must use HTTPS, except for localhost development.");
     }
     if (adminSecret.length < 32) throw new Error("The relay administrator secret must contain at least 32 characters.");
@@ -179,7 +182,7 @@ export class RemoteService {
   }
 
   async createPairing(): Promise<RemotePairingOffer> {
-    if (!this.relayUrl || !this.mobileUrl || !this.adminSecret || this.adminSecret.length < 32 || !secureRelayUrl(this.relayUrl)) {
+    if (!this.relayUrl || !this.mobileUrl || !this.adminSecret || this.adminSecret.length < 32 || !secureRelayUrl(this.relayUrl) || !secureMobileUrl(this.mobileUrl)) {
       throw new Error("Mobile relay is not configured on this desktop build.");
     }
     const relayUrl = this.relayUrl;
@@ -195,6 +198,10 @@ export class RemoteService {
           method: "POST",
           headers: { "content-type": "application/json", "x-summonerkit-admin": adminSecret },
           body: JSON.stringify({ desktopPublicKey: keys.publicKey, expiresInSeconds: 180 }),
+          cache: "no-store",
+          credentials: "omit",
+          redirect: "error",
+          signal: AbortSignal.timeout(8_000),
         });
         if (!response.ok) throw new Error(`The mobile relay rejected room creation (${response.status}).`);
         return createRoomResponseSchema.parse(await response.json());
@@ -203,8 +210,12 @@ export class RemoteService {
         throw error;
       }
     })();
-    const websocketUrl = new URL(room.websocketUrl);
-    const socket = new WebSocket(websocketUrl, remoteWebSocketProtocols(room.accessToken));
+    const websocketUrl = validatedRelaySocketUrl(room.websocketUrl, relayUrl, room.roomId);
+    const socket = new WebSocket(websocketUrl, remoteWebSocketProtocols(room.accessToken), {
+      maxPayload: MAX_REMOTE_FRAME_BYTES,
+      perMessageDeflate: false,
+      handshakeTimeout: 8_000,
+    });
     this.active = { roomId: room.roomId, deviceId: null, socket, privateKey: keys.privateKey, oneTimeSecret, channel: null };
     this.store.update((snapshot) => {
       snapshot.remote.status = "pairing";
@@ -287,11 +298,15 @@ export class RemoteService {
       const candidate = JSON.parse(raw) as unknown;
       const peer = peerKeySchema.safeParse(candidate);
       if (peer.success) {
+        if (active.channel) return;
         const known = this.settings.get().remoteDevices.find((device) => device.id === peer.data.deviceId);
         if (known?.revoked) throw new Error("This device was revoked locally.");
         if (!(await verifyPairingProof(peer.data.pairingProof, active.oneTimeSecret, active.roomId, peer.data.publicKey))) {
           throw new Error("The mobile pairing proof is invalid.");
         }
+        // The QR secret is only needed for this proof. Drop it immediately so
+        // a claimed pairing cannot be reused from the active desktop state.
+        active.oneTimeSecret = "";
         active.channel = new EncryptedChannel(
           active.roomId,
           await deriveSessionKeys("desktop", active.roomId, active.privateKey, peer.data.publicKey),
@@ -310,8 +325,9 @@ export class RemoteService {
       await this.touchDevice(active.deviceId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn("Remote message rejected", { error: message });
-      this.queueEncrypted({ kind: "error", message });
+      const safeMessage = String(redactSensitive(message)).slice(0, MAX_REMOTE_ERROR_LENGTH);
+      this.logger.warn("Remote message rejected", { error: safeMessage });
+      this.queueEncrypted({ kind: "error", message: safeMessage });
       if (!active.channel) active.socket.close(1008, "Invalid pairing handshake");
     }
   }
@@ -403,9 +419,10 @@ export class RemoteService {
 
   private reportError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
+    const safeMessage = String(redactSensitive(message)).slice(0, MAX_REMOTE_ERROR_LENGTH);
     this.store.update((snapshot) => {
       snapshot.remote.status = "error";
-      snapshot.remote.lastError = message;
+      snapshot.remote.lastError = safeMessage;
     });
   }
 }
@@ -472,10 +489,38 @@ export function remoteSnapshot(snapshot: CompanionSnapshot): RemoteCompanionSnap
 }
 
 function secureRelayUrl(value: string): boolean {
+  if (value.length > 2_048) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" || (url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost"));
+    return isSecureRemoteUrl(url)
+      && url.pathname === "/"
+      && (url.protocol === "https:" || (url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost")));
   } catch {
     return false;
   }
+}
+
+function secureMobileUrl(value: string): boolean {
+  if (value.length > 2_048) return false;
+  try {
+    const url = new URL(value);
+    return isSecureRemoteUrl(url)
+      && (url.protocol === "https:" || (url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost")));
+  } catch {
+    return false;
+  }
+}
+
+function isSecureRemoteUrl(url: URL): boolean {
+  return !url.username && !url.password && !url.search && !url.hash;
+}
+
+export function validatedRelaySocketUrl(candidate: string, relayUrl: string, roomId: string): URL {
+  const socket = new URL(candidate);
+  const relay = new URL(relayUrl);
+  const expectedProtocol = relay.protocol === "https:" ? "wss:" : "ws:";
+  if (socket.host !== relay.host || socket.protocol !== expectedProtocol || socket.username || socket.password || socket.search || socket.hash || socket.pathname !== `/rooms/${roomId}/socket`) {
+    throw new Error("The mobile relay returned an unexpected WebSocket endpoint.");
+  }
+  return socket;
 }

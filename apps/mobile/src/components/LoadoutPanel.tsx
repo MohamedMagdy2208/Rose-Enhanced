@@ -36,7 +36,7 @@ export function LoadoutPanel({ snapshot, pending, send }: LoadoutPanelProps) {
       </div>
       <div className="loadout-block">
         <label className="loadout-label" htmlFor="rune-page"><WandSparkles size={17} /><strong>Rune page</strong></label>
-        <select id="rune-page" value={runePageId} onChange={(event) => setRunePageId(Number(event.target.value))}>{runePages.map((page) => <option key={page.id} value={page.id}>{page.name}{page.summonerKitManaged ? " · Rose" : ""}</option>)}</select>
+        <select id="rune-page" value={runePageId} onChange={(event) => setRunePageId(Number(event.target.value))}>{runePages.map((page) => <option key={page.id} value={page.id}>{page.name}{page.summonerKitManaged ? " · SummonerKit" : ""}</option>)}</select>
         <button type="button" className="button-secondary button-full" disabled={pending || !runePageId} onClick={() => send({ type: "champSelect.setRunePage", pageId: runePageId })}>Use rune page</button>
       </div>
       <div className="loadout-block">

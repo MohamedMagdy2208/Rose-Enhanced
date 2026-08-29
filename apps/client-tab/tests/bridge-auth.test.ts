@@ -45,4 +45,22 @@ describe("client-tab bridge authorization", () => {
     expect(browserWindow.location.search).toBe("");
     await Promise.all([browserWindow.happyDOM.close(), unrelatedWindow.happyDOM.close()]);
   });
+
+  it("ignores malformed authorization envelopes", async () => {
+    const browserWindow = new HappyWindow({ url: "http://127.0.0.1:17654/client/" });
+    const authorizationPromise = receiveBridgeAuthorization(browserWindow as unknown as Window, 100);
+    browserWindow.dispatchEvent(
+      new browserWindow.MessageEvent("message", {
+        data: {
+          type: BRIDGE_AUTH_MESSAGE_TYPE,
+          token: "not-a-valid-bridge-token",
+          protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
+          pluginVersion: "client",
+        },
+        source: browserWindow.parent,
+      }),
+    );
+    await expect(authorizationPromise).rejects.toThrow("did not receive bridge authorization");
+    await browserWindow.happyDOM.close();
+  });
 });

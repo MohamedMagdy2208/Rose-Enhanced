@@ -5,21 +5,34 @@ import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { app } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { CompanionCommand, CommandResult } from "@summonerkit/contracts";
+import { companionCommandSchema, type CompanionCommand, type CommandResult } from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { LcuClient } from "./lcu/lcu-client";
 import type { AppLogger } from "./logger";
 import { isClientSurfaceCommandAllowed } from "./client-surface-policy";
+import { clientSurfaceSnapshot } from "./client-surface-snapshot";
 import {
   allowedLoopbackOrigin,
+  bridgePortFromEnvironment,
   bridgeSessionFromProtocols,
   expectedLoopbackHost,
 } from "./loopback-security";
+import { z } from "zod";
 
 interface ClientRate {
   windowStartedAt: number;
   commands: number;
 }
+
+const bridgeCommandMessageSchema = z.object({
+  type: z.literal("command"),
+  id: z.string().uuid(),
+  command: companionCommandSchema,
+}).strict();
+const clientSessionSchema = z.object({
+  protocolVersion: z.number().int().nonnegative().max(100),
+  pluginVersion: z.string().regex(/^[A-Za-z0-9._-]{1,40}$/u),
+}).strict();
 
 const contentTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -35,6 +48,8 @@ const contentTypes: Record<string, string> = {
 
 const bridgeSessionLifetimeMs = 30_000;
 const maxPendingBridgeSessions = 64;
+const maxBridgeJsonBytes = 8 * 1024 * 1024;
+const maxBridgeHeaderBytes = 16 * 1024;
 
 interface BridgeServerDependencies {
   token: string;
@@ -52,14 +67,19 @@ export class BridgeServer {
   private readonly rates = new WeakMap<WebSocket, ClientRate>();
   private readonly sessions = new Map<string, number>();
   private readonly webSockets: WebSocketServer;
+  private readonly handleStoreChanged = (): void => this.broadcastSnapshot();
 
   constructor(private readonly dependencies: BridgeServerDependencies) {
-    this.port = Number(process.env.SUMMONERKIT_BRIDGE_PORT ?? 17_654);
-    this.server = http.createServer((request, response) => void this.handleRequest(request, response));
-    this.webSockets = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024 });
+    this.port = bridgePortFromEnvironment();
+    this.server = http.createServer({ maxHeaderSize: maxBridgeHeaderBytes }, (request, response) => void this.handleRequest(request, response));
+    this.server.maxHeadersCount = 64;
+    this.server.requestTimeout = 10_000;
+    this.server.headersTimeout = 5_000;
+    this.server.keepAliveTimeout = 5_000;
+    this.server.maxRequestsPerSocket = 100;
+    this.webSockets = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024, perMessageDeflate: false });
     this.server.on("upgrade", (request, socket, head) => this.handleUpgrade(request, socket, head));
     this.webSockets.on("connection", (socket) => this.handleSocket(socket));
-    this.dependencies.store.on("changed", () => this.broadcastSnapshot());
   }
 
   start(): Promise<void> {
@@ -67,6 +87,8 @@ export class BridgeServer {
       this.server.once("error", reject);
       this.server.listen(this.port, "127.0.0.1", () => {
         this.server.off("error", reject);
+        this.dependencies.store.off("changed", this.handleStoreChanged);
+        this.dependencies.store.on("changed", this.handleStoreChanged);
         this.dependencies.logger.info("Client-tab bridge listening", { host: "127.0.0.1", port: this.port });
         resolve();
       });
@@ -74,6 +96,7 @@ export class BridgeServer {
   }
 
   stop(): Promise<void> {
+    this.dependencies.store.off("changed", this.handleStoreChanged);
     for (const socket of this.sockets) socket.close(1_001, "Desktop bridge is closing");
     return new Promise((resolve) => this.server.close(() => resolve()));
   }
@@ -97,6 +120,7 @@ export class BridgeServer {
   }
 
   private async handlePost(request: IncomingMessage, response: ServerResponse, pathname: string): Promise<void> {
+    if (!this.allowedHttpOrigin(request)) return this.send(response, 403, "Origin not allowed");
     if (!this.authorizedRequest(request)) return this.send(response, 401, "Unauthorized");
     if (pathname === "/bridge-session") return this.issueBridgeSession(response);
     if (pathname !== "/client-session") return this.send(response, 404, "Not found");
@@ -110,8 +134,9 @@ export class BridgeServer {
       return this.sendJson(response, 200, { status: "ok", connected: this.dependencies.lcu.isConnected() });
     }
     if (url.pathname === "/snapshot") {
+      if (!this.allowedHttpOrigin(request)) return this.send(response, 403, "Origin not allowed");
       if (!this.authorizedRequest(request)) return this.send(response, 401, "Unauthorized");
-      return this.sendJson(response, 200, this.dependencies.store.getSnapshot());
+      return this.sendJson(response, 200, clientSurfaceSnapshot(this.dependencies.store.getSnapshot()));
     }
     if (url.pathname === "/lcu-asset") return this.serveLcuAsset(url, response);
     if (url.pathname === "/" || url.pathname.startsWith("/client")) return this.serveClientAsset(url.pathname, response);
@@ -146,8 +171,14 @@ export class BridgeServer {
   private handleSocket(socket: WebSocket): void {
     this.sockets.add(socket);
     this.rates.set(socket, { windowStartedAt: Date.now(), commands: 0 });
-    socket.send(JSON.stringify({ type: "snapshot", snapshot: this.dependencies.store.getSnapshot() }));
+    const initialSnapshot = this.serializePayload({ type: "snapshot", snapshot: clientSurfaceSnapshot(this.dependencies.store.getSnapshot()) });
+    if (!initialSnapshot) {
+      socket.close(1_011, "Bridge snapshot is too large");
+      return;
+    }
+    socket.send(initialSnapshot);
     socket.on("message", (raw) => void this.handleSocketMessage(socket, raw.toString()));
+    socket.on("error", (error) => this.dependencies.logger.debug("Client-tab bridge socket failed", { error: String(error) }));
     socket.on("close", () => {
       this.sockets.delete(socket);
       if (this.sockets.size === 0) this.dependencies.registerClientSession(null, null);
@@ -160,14 +191,13 @@ export class BridgeServer {
       return;
     }
     try {
-      const message = JSON.parse(raw) as { type?: string; id?: string; command?: CompanionCommand };
-      if (message.type !== "command" || typeof message.id !== "string" || !message.command) return;
+      const message = bridgeCommandMessageSchema.parse(JSON.parse(raw));
       if (!isClientSurfaceCommandAllowed(message.command)) {
-        socket.send(JSON.stringify({ type: "commandResult", id: message.id, result: { ok: false, message: "That command is available only in the desktop app." } }));
+        this.sendSocketPayload(socket, { type: "commandResult", id: message.id, result: { ok: false, message: "That command is available only in the desktop app." } });
         return;
       }
       const result = await this.dependencies.dispatch(message.command);
-      socket.send(JSON.stringify({ type: "commandResult", id: message.id, result }));
+      this.sendSocketPayload(socket, { type: "commandResult", id: message.id, result });
     } catch {
       socket.close(1_007, "Invalid command message");
     }
@@ -186,7 +216,11 @@ export class BridgeServer {
   }
 
   private broadcastSnapshot(): void {
-    const message = JSON.stringify({ type: "snapshot", snapshot: this.dependencies.store.getSnapshot() });
+    const message = this.serializePayload({ type: "snapshot", snapshot: clientSurfaceSnapshot(this.dependencies.store.getSnapshot()) });
+    if (!message) {
+      for (const socket of this.sockets) socket.close(1_011, "Bridge snapshot is too large");
+      return;
+    }
     for (const socket of this.sockets) if (socket.readyState === socket.OPEN) socket.send(message);
   }
 
@@ -210,7 +244,7 @@ export class BridgeServer {
       });
       createReadStream(candidate).pipe(response);
     } catch {
-      return this.send(response, 404, "Client tab has not been built yet");
+      return this.send(response, 404, "SummonerKit client tab has not been built yet");
     }
   }
 
@@ -222,6 +256,11 @@ export class BridgeServer {
   private authorizedRequest(request: IncomingMessage): boolean {
     const bearer = request.headers.authorization?.replace(/^Bearer\s+/i, "") ?? null;
     return this.tokensMatch(bearer);
+  }
+
+  private allowedHttpOrigin(request: IncomingMessage): boolean {
+    const origin = request.headers.origin;
+    return origin === undefined || allowedLoopbackOrigin(origin, this.port);
   }
 
   private issueBridgeSession(response: ServerResponse): void {
@@ -253,15 +292,12 @@ export class BridgeServer {
       if (size > 4_096) throw new Error("Client session payload is too large.");
       chunks.push(bytes);
     }
-    const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-    if (!Number.isSafeInteger(body.protocolVersion) || typeof body.pluginVersion !== "string") {
-      throw new Error("Client session payload is invalid.");
-    }
-    return { protocolVersion: body.protocolVersion as number, pluginVersion: body.pluginVersion.slice(0, 40) };
+    const body = clientSessionSchema.parse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    return { protocolVersion: body.protocolVersion, pluginVersion: body.pluginVersion };
   }
 
   private tokensMatch(candidate: string | null): boolean {
-    if (!candidate) return false;
+    if (!candidate || candidate.length > 256) return false;
     const left = Buffer.from(candidate);
     const right = Buffer.from(this.dependencies.token);
     return left.length === right.length && timingSafeEqual(left, right);
@@ -270,6 +306,7 @@ export class BridgeServer {
   private setSecurityHeaders(response: ServerResponse): void {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("Referrer-Policy", "no-referrer");
+    response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=()");
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     response.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://127.0.0.1:${this.port}; connect-src 'self' ws://127.0.0.1:${this.port}; font-src 'self'; frame-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`);
@@ -281,7 +318,27 @@ export class BridgeServer {
   }
 
   private sendJson(response: ServerResponse, status: number, body: unknown): void {
+    const serialized = this.serializePayload(body);
+    if (!serialized) {
+      this.send(response, 413, "Bridge response is too large");
+      return;
+    }
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    response.end(JSON.stringify(body));
+    response.end(serialized);
+  }
+
+  private serializePayload(payload: unknown): string | null {
+    const serialized = JSON.stringify(payload);
+    if (typeof serialized !== "string") return null;
+    return Buffer.byteLength(serialized, "utf8") <= maxBridgeJsonBytes ? serialized : null;
+  }
+
+  private sendSocketPayload(socket: WebSocket, payload: unknown): void {
+    const serialized = this.serializePayload(payload);
+    if (!serialized) {
+      socket.close(1_011, "Bridge response is too large");
+      return;
+    }
+    socket.send(serialized);
   }
 }

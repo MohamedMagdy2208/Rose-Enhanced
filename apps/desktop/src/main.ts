@@ -16,6 +16,7 @@ import {
 } from "electron";
 import {
   PRODUCT_NAME,
+  PRODUCT_ICON_DATA_URL,
   PRODUCT_REPOSITORY,
   type AutomationSettings,
   type CompanionCommand,
@@ -23,7 +24,7 @@ import {
 } from "@summonerkit/contracts";
 import squirrelStartup from "electron-squirrel-startup";
 import { registerIpc } from "./ipc";
-import { allowedExternalUrl } from "./electron-security";
+import { allowedExternalUrl, trustedRendererUrl } from "./electron-security";
 import { rendererFilePath, RENDERER_SCHEME } from "./renderer-protocol";
 import { AutomationService } from "./services/automation-service";
 import { AramService } from "./services/aram-service";
@@ -42,6 +43,7 @@ import { PresenceService } from "./services/presence-service";
 import { RemoteService } from "./services/remote-service";
 import { applyReadyCheckWindowPolicy } from "./services/ready-check-window-policy";
 import { SettingsStore } from "./services/settings-store";
+import { createStartupRegistration, type StartupRegistration } from "./services/startup-registration";
 import { UpdateService } from "./services/update-service";
 
 if (squirrelStartup) app.quit();
@@ -95,6 +97,23 @@ async function bootstrap(): Promise<void> {
 
   await pengu.repairIfInstalled();
 
+  const startupRegistration = await resolveStartupRegistration();
+  const setStartupEnabled = (enabled: boolean): void => {
+    if (process.platform !== "win32") return;
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      enabled: true,
+      name: PRODUCT_NAME,
+      path: startupRegistration.path,
+      args: startupRegistration.args,
+    });
+  };
+  try {
+    setStartupEnabled(persisted.startup.launchOnWindowsStartup);
+  } catch (error) {
+    logger.warn("Could not apply the Windows startup preference", { error: error instanceof Error ? error.message : String(error) });
+  }
+
   mainWindow = createWindow(logger);
   const chooseExecutable = async (id: "rose" | "deceive"): Promise<string | null> => {
     if (!mainWindow) return null;
@@ -127,6 +146,7 @@ async function bootstrap(): Promise<void> {
     clientTabActivation,
     remote,
     openDesktop,
+    setStartupEnabled,
     chooseExecutable,
     logger,
   });
@@ -154,6 +174,13 @@ async function bootstrap(): Promise<void> {
   };
   store.on("changed", handleReadyCheckWindowPolicy);
 
+  let openedOnLeagueConnect = false;
+  lcu.on("connected", () => {
+    if (openedOnLeagueConnect) return;
+    openedOnLeagueConnect = true;
+    if (settings.get().startup.openOnLeagueDetected && mainWindow && !mainWindow.isVisible()) openDesktop();
+  });
+  lcu.on("disconnected", () => { openedOnLeagueConnect = false; });
   lcu.on("state", (state) => store.update((snapshot) => { snapshot.connection = state; }));
   clientTabActivation.start();
   collection.start();
@@ -224,9 +251,12 @@ function createWindow(logger: AppLogger): BrowserWindow {
     if (externalUrl) void shell.openExternal(externalUrl);
     return { action: "deny" };
   });
-  window.webContents.on("will-navigate", (event, url) => {
-    if (url !== window.webContents.getURL()) event.preventDefault();
-  });
+  const blockUnexpectedNavigation = (event: Electron.Event, url: string): void => {
+    if (url !== window.webContents.getURL() || !trustedRendererUrl(url)) event.preventDefault();
+  };
+  window.webContents.on("will-navigate", blockUnexpectedNavigation);
+  window.webContents.on("will-redirect", blockUnexpectedNavigation);
+  window.webContents.on("will-attach-webview", (event) => event.preventDefault());
   window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
@@ -255,13 +285,13 @@ async function loadRenderer(window: BrowserWindow, logger: AppLogger): Promise<v
       <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
       <title>SummonerKit could not open</title><style>
-      :root{color-scheme:dark;font-family:"Segoe UI",sans-serif}body{display:grid;min-height:100vh;margin:0;place-items:center;color:#f4efe8;background:#090b0f}.card{width:min(34rem,calc(100% - 3rem));padding:2rem;background:#12161d;border:1px solid #df6b65;border-radius:12px}.mark{color:#f06a7f;font:700 13px Georgia,serif;letter-spacing:.08em}h1{margin:.75rem 0;font:700 2rem Georgia,serif}p{margin:0;color:#bbb5ad;line-height:1.6}code{display:block;margin-top:1rem;padding:.75rem;color:#dfa452;background:#090b0f;border:1px solid #292f39;border-radius:8px;white-space:normal}
-      </style></head><body><main class="card"><span class="mark">SUMMONERKIT</span><h1>The desktop interface could not load.</h1><p>The local engine can remain available to the League tab. Close this window, reopen SummonerKit, and check the diagnostic log if the problem continues.</p><code>Renderer load failed. No credentials were exposed.</code></main></body></html>`;
+       :root{color-scheme:dark;font-family:"Segoe UI",sans-serif}body{display:grid;min-height:100vh;margin:0;place-items:center;color:#f4efe8;background:#090b0f}.card{width:min(34rem,calc(100% - 3rem));padding:2rem;background:#12161d;border:1px solid #df6b65;border-radius:12px}.mark{display:block;width:3.5rem;height:3.5rem;margin-bottom:1rem;object-fit:contain;filter:drop-shadow(0 5px 12px rgb(0 0 0 / .35))}h1{margin:.75rem 0;font:700 2rem Georgia,serif}p{margin:0;color:#bbb5ad;line-height:1.6}code{display:block;margin-top:1rem;padding:.75rem;color:#dfa452;background:#090b0f;border:1px solid #292f39;border-radius:8px;white-space:normal}
+       </style></head><body><main class="card"><img class="mark" src="${PRODUCT_ICON_DATA_URL}" alt=""><h1>The desktop interface could not load.</h1><p>The local engine can remain available to the League tab. Close this window, reopen ${PRODUCT_NAME}, and check the diagnostic log if the problem continues.</p><code>Renderer load failed. No credentials were exposed.</code></main></body></html>`;
     try {
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(failurePage)}`);
       if (!startInBackground) window.show();
     } catch {
-      dialog.showErrorBox("SummonerKit could not open", "The desktop interface failed to load. Check the SummonerKit diagnostic log for details.");
+      dialog.showErrorBox(`${PRODUCT_NAME} could not open`, `The desktop interface failed to load. Check the ${PRODUCT_NAME} diagnostic log for details.`);
     }
   }
 }
@@ -271,6 +301,27 @@ function applicationAssetPath(filename: "icon.ico" | "tray-icon.png"): string {
     ? path.join(process.resourcesPath, "assets")
     : path.resolve(app.getAppPath(), "assets");
   return path.join(assetDirectory, filename);
+}
+
+async function resolveStartupRegistration(): Promise<StartupRegistration> {
+  const executablePath = process.execPath;
+  const appFolder = path.dirname(executablePath);
+  const executableName = path.basename(executablePath);
+  const squirrelStubPath = app.isPackaged
+    ? path.resolve(appFolder, "..", executableName)
+    : null;
+  const updateExecutable = path.resolve(appFolder, "..", "Update.exe");
+  const usableSquirrelStub = squirrelStubPath
+    && await fileExists(updateExecutable)
+    && await fileExists(squirrelStubPath)
+    ? squirrelStubPath
+    : null;
+  return createStartupRegistration({
+    isPackaged: app.isPackaged,
+    executablePath,
+    appPath: app.getAppPath(),
+    squirrelStubPath: usableSquirrelStub,
+  });
 }
 
 const trayAutomationFeatures: ReadonlyArray<{
@@ -291,7 +342,7 @@ function createTray(
   notifyUser: (title: string, body: string) => void,
 ): () => void {
   tray = new Tray(applicationAssetPath("tray-icon.png"));
-  tray.setToolTip("SummonerKit");
+  tray.setToolTip(PRODUCT_NAME);
 
   const openWindow = (): void => {
     if (window.isMinimized()) window.restore();
@@ -302,7 +353,7 @@ function createTray(
   const dispatch = async (command: CompanionCommand): Promise<void> => {
     const result = await router.dispatch(command);
     if (!result.ok) {
-      notifyUser("SummonerKit setting was not changed", result.message);
+      notifyUser(`${PRODUCT_NAME} setting was not changed`, result.message);
       menuSignature = "";
       refreshMenu();
     }
@@ -334,6 +385,8 @@ function trayMenuSignature(snapshot: CompanionSnapshot): string {
     presenceStatus: snapshot.presence.status,
     presenceAvailability: snapshot.presence.availability,
     presenceError: snapshot.presence.lastError,
+    launchOnWindowsStartup: snapshot.startup.launchOnWindowsStartup,
+    openOnLeagueDetected: snapshot.startup.openOnLeagueDetected,
     riskAcknowledged: snapshot.automation.riskAcknowledged,
     executionMode: snapshot.automation.executionMode,
     features: trayAutomationFeatures.map((feature) => snapshot.automation[feature.key]),
@@ -423,20 +476,49 @@ function trayMenuTemplate(
     },
     {
       label: "Disable all automation",
-      enabled: automationUnlocked && activeFeatures.length > 0,
+      enabled: activeFeatures.length > 0,
+      click: () => { void dispatch({ type: "automation.disableAll" }); },
+    },
+  ];
+
+  const startupMenu: MenuItemConstructorOptions[] = [
+    {
+      label: "Start with Windows",
+      type: "checkbox",
+      checked: snapshot.startup.launchOnWindowsStartup,
+      enabled: process.platform === "win32",
       click: () => {
-        void (async () => {
-          for (const feature of activeFeatures) {
-            await dispatch({ type: "automation.setEnabled", feature: feature.key, enabled: false });
-          }
-        })();
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "launchOnWindowsStartup",
+          enabled: !snapshot.startup.launchOnWindowsStartup,
+        });
       },
+    },
+    {
+      label: "Open when League connects",
+      type: "checkbox",
+      checked: snapshot.startup.openOnLeagueDetected,
+      click: () => {
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "openOnLeagueDetected",
+          enabled: !snapshot.startup.openOnLeagueDetected,
+        });
+      },
+    },
+    {
+      label: snapshot.startup.launchOnWindowsStartup
+        ? "The engine runs quietly in the tray at sign-in."
+        : "Enable Start with Windows for hands-free League detection.",
+      enabled: false,
     },
   ];
 
   return [
-    { label: "Open SummonerKit", click: openWindow },
+    { label: `Open ${PRODUCT_NAME}`, click: openWindow },
     { type: "separator" },
+    { label: "Startup", submenu: startupMenu },
     { label: "League presence", submenu: presenceMenu },
     { label: "Automation", submenu: automationMenu },
     { type: "separator" },
@@ -478,13 +560,14 @@ async function fileExists(candidate: string): Promise<boolean> {
   }
 }
 
-app.on("second-instance", () => {
+app.on("second-instance", (_event, commandLine) => {
+  if (commandLine.some((argument) => argument === "--background")) return;
   mainWindow?.show();
   mainWindow?.focus();
 });
 
 app.whenReady().then(bootstrap).catch((error) => {
-  void dialog.showErrorBox("SummonerKit failed to start", error instanceof Error ? error.message : String(error));
+  void dialog.showErrorBox(`${PRODUCT_NAME} failed to start`, error instanceof Error ? error.message : String(error));
   app.quit();
 });
 

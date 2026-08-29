@@ -567,6 +567,11 @@ export interface RemoteState {
   lastError: string | null;
 }
 
+export interface StartupSettings {
+  launchOnWindowsStartup: boolean;
+  openOnLeagueDetected: boolean;
+}
+
 export interface RemotePairingOffer {
   roomId: string;
   pairingUrl: string;
@@ -591,6 +596,7 @@ export interface CompanionSnapshot {
   insights: InsightsSnapshot;
   remote: RemoteState;
   remoteDevices: RemoteDevice[];
+  startup: StartupSettings;
 }
 
 export interface DiagnosticReport {

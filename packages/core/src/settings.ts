@@ -2,6 +2,7 @@ import type {
   AutomationProfile,
   AutomationSettings,
   RemoteDevice,
+  StartupSettings,
 } from "@summonerkit/contracts";
 
 export interface PersistedSettings {
@@ -13,6 +14,7 @@ export interface PersistedSettings {
   favorites: number[];
   wishlist: number[];
   aramFavoriteChampionIds: number[];
+  startup: StartupSettings;
   remoteDevices: RemoteDevice[];
   remoteConfiguration: {
     relayUrl: string | null;
@@ -59,6 +61,10 @@ export function createDefaultSettings(bridgeToken: string): PersistedSettings {
     favorites: [],
     wishlist: [],
     aramFavoriteChampionIds: [],
+    startup: {
+      launchOnWindowsStartup: false,
+      openOnLeagueDetected: false,
+    },
     remoteDevices: [],
     remoteConfiguration: {
       relayUrl: null,

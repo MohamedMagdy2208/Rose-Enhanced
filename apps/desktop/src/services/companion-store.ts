@@ -25,7 +25,7 @@ const capabilities = {
 const initialIntegrations: IntegrationState[] = [
   { id: "rose", name: "Rose", installed: false, running: false, managedProcess: false, executablePath: null, version: null, lastError: null },
   { id: "deceive", name: "Deceive", installed: false, running: false, managedProcess: false, executablePath: null, version: null, lastError: null },
-  { id: "pengu", name: "Client tab", installed: false, running: false, managedProcess: false, executablePath: null, version: "1.1.6", lastError: null },
+  { id: "pengu", name: "SummonerKit client tab", installed: false, running: false, managedProcess: false, executablePath: null, version: "1.1.6", lastError: null },
 ];
 
 function leagueDoctorCheck(snapshot: CompanionSnapshot): ConnectionDoctorCheck {
@@ -107,6 +107,7 @@ export class CompanionStore extends EventEmitter {
       presence: { status: "unavailable", availability: null, updatedAt: null, lastError: "Connect to League to manage presence." },
       collection: { status: "idle", source: "none", stale: false, patch: null, accountKey: null, updatedAt: null, progress: { totalSkins: 0, ownedSkins: 0, lootSkins: 0, favoriteSkins: 0, wishlistSkins: 0, completionPercent: 0 }, champions: [], warnings: [] },
       automation: settings.automation,
+      startup: settings.startup,
       pendingAutomation: [],
       profiles: settings.profiles,
       audit: [],

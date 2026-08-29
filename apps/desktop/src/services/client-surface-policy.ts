@@ -6,6 +6,7 @@ const clientSurfaceCommands = new Set<CompanionCommand["type"]>([
   "automation.confirm",
   "automation.dismiss",
   "automation.setEnabled",
+  "automation.disableAll",
   "profile.setChampionPriorities",
   "collection.refresh",
   "collection.toggleFavorite",

@@ -129,6 +129,10 @@ export class AutomationEngine {
     ];
   }
 
+  releaseReadyCheck(sessionId: string): void {
+    this.acceptedReadyChecks.delete(sessionId);
+  }
+
   evaluateChampSelect(context: AutomationContext): AutomationEffect[] {
     if (!context.settings.riskAcknowledged) return [];
     const action = context.actions.find(

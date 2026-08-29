@@ -1,4 +1,4 @@
-import type { CompanionCommand, CommandResult } from "@summonerkit/contracts";
+import type { CompanionCommand, CommandResult, StartupSettings } from "@summonerkit/contracts";
 import { companionCommandSchema } from "@summonerkit/contracts";
 import type { AutomationService } from "./automation-service";
 import type { AramService } from "./aram-service";
@@ -28,9 +28,12 @@ interface CommandRouterDependencies {
   clientTabActivation: ClientTabActivationService;
   remote: RemoteService;
   openDesktop: () => void;
+  setStartupEnabled: (enabled: boolean) => void;
   chooseExecutable: (id: "rose" | "deceive") => Promise<string | null>;
   logger: AppLogger;
 }
+
+const automationFeatureKeys = ["autoAccept", "autoPick", "autoBan", "autoSpells", "autoRunes"] as const;
 
 export class CommandRouter {
   constructor(private readonly dependencies: CommandRouterDependencies) {}
@@ -54,6 +57,16 @@ export class CommandRouter {
       case "desktop.open":
         this.dependencies.openDesktop();
         return;
+      case "startup.setEnabled": {
+        if (command.setting === "launchOnWindowsStartup") {
+          this.dependencies.setStartupEnabled(command.enabled);
+        }
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.startup[command.setting] = command.enabled;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.startup = settings.startup; });
+        return;
+      }
       case "presence.set":
         await this.dependencies.presence.setAvailability(command.availability);
         return;
@@ -85,6 +98,14 @@ export class CommandRouter {
         }
         const settings = await this.dependencies.settings.update((draft) => {
           draft.automation[command.feature] = command.enabled;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
+        return;
+      }
+      case "automation.disableAll": {
+        this.dependencies.automation.clearPending();
+        const settings = await this.dependencies.settings.update((draft) => {
+          for (const feature of automationFeatureKeys) draft.automation[feature] = false;
         });
         this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
         return;
@@ -232,6 +253,7 @@ export class CommandRouter {
 
   private successMessage(command: CompanionCommand): string {
     if (command.type === "desktop.open") return "Desktop app opened.";
+    if (command.type === "startup.setEnabled") return startupSettingMessage(command.setting, command.enabled);
     if (command.type === "presence.set") return `Presence changed to ${command.availability}.`;
     if (command.type === "collection.refresh") return "Collection synchronized.";
     if (command.type === "insights.refreshRunes") return "Online coaching guidance refreshed.";
@@ -244,6 +266,7 @@ export class CommandRouter {
     if (command.type === "profile.delete") return "Automation profile deleted.";
     if (command.type === "automation.acknowledgeRisk") return "Risk acknowledgement saved locally.";
     if (command.type === "automation.setEnabled") return `${command.feature} ${command.enabled ? "enabled" : "disabled"}.`;
+    if (command.type === "automation.disableAll") return "All automation features are disabled.";
     if (command.type === "automation.setMode") return `Automation mode changed to ${command.mode}.`;
     if (command.type === "automation.confirm") return "Automation action confirmed.";
     if (command.type === "automation.dismiss") return "Automation action dismissed.";
@@ -257,4 +280,9 @@ export class CommandRouter {
     if (command.type.startsWith("integration.")) return "Integration updated.";
     return "Command completed.";
   }
+}
+
+function startupSettingMessage(setting: keyof StartupSettings, enabled: boolean): string {
+  if (setting === "launchOnWindowsStartup") return `Start with Windows ${enabled ? "enabled" : "disabled"}.`;
+  return `Open on League detection ${enabled ? "enabled" : "disabled"}.`;
 }

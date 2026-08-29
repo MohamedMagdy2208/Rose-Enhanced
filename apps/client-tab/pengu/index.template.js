@@ -27,7 +27,7 @@
   const roseNavigationSelector =
     "lol-uikit-navigation-item.menu_item_Golden.Rose";
   const roseEntryMarkup = `
-    <span class="summonerkit-settings-entry__mark" aria-hidden="true">SK</span>
+    <span class="summonerkit-settings-entry__mark" aria-hidden="true"><img src="${config.navigationIcon}" alt=""></span>
     <span class="summonerkit-settings-entry__copy">
       <strong>SummonerKit</strong>
       <small>Collection, loot, and automation</small>
@@ -40,6 +40,7 @@
     #${ids.overlay} .summonerkit-content { min-height: 0; }
     #${ids.overlay} .summonerkit-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; border-bottom: 1px solid #463714; background: #010a13; }
     #${ids.overlay} .summonerkit-identity { display: flex; align-items: center; gap: 8px; color: #a09b8c; font: 700 13px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.08em; text-transform: uppercase; }
+    #${ids.overlay} .summonerkit-identity__icon { width: 24px; height: 24px; object-fit: contain; }
     #${ids.overlay} .summonerkit-identity__accent { color: #f06a7f; }
     #${ids.overlay} .summonerkit-close { min-height: 32px; padding: 0 12px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
     #${ids.overlay} .summonerkit-close:hover,
@@ -50,7 +51,8 @@
     #${ids.navigation}:focus-visible { outline: 2px solid #cdfafa; outline-offset: -3px; }
     #${ids.roseEntry} { box-sizing: border-box; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px; color: #f0e6d2; text-align: left; background: #1e2328; border: 1px solid #785a28; cursor: pointer; }
     #${ids.roseEntry}:hover { border-color: #c89b3c; background: #242a30; }
-    #${ids.roseEntry} .summonerkit-settings-entry__mark { display: grid; place-items: center; width: 38px; height: 32px; color: #f06a7f; border-right: 1px solid #463714; font: 700 13px/1 Georgia, serif; }
+    #${ids.roseEntry} .summonerkit-settings-entry__mark { display: grid; place-items: center; width: 38px; height: 32px; border-right: 1px solid #463714; }
+    #${ids.roseEntry} .summonerkit-settings-entry__mark img { width: 30px; height: 30px; object-fit: contain; }
     #${ids.roseEntry} .summonerkit-settings-entry__copy { display: grid; gap: 2px; }
     #${ids.roseEntry} strong { font: 700 14px/1.1 "Beaufort for LOL", Georgia, serif; }
     #${ids.roseEntry} small { color: #a09b8c; font: 12px/1.2 Arial, sans-serif; }
@@ -66,7 +68,8 @@
     #${ids.navigation}[aria-expanded="true"]::after { position: absolute; right: 9px; bottom: 0; left: 9px; height: 2px; content: ""; background: #c89b3c; box-shadow: 0 0 8px rgb(200 155 60 / 70%); }
     #${ids.overlay} .summonerkit-connection { box-sizing: border-box; display: grid; place-items: center; width: 100%; height: 100%; padding: 32px; background: radial-gradient(circle at 50% 28%, #14202a 0, #090b0f 48%); }
     #${ids.overlay} .summonerkit-connection-card { width: min(520px, 100%); padding: 28px; text-align: center; border: 1px solid #463714; background: #010a13; box-shadow: 0 18px 48px rgb(0 0 0 / 45%); }
-    #${ids.overlay} .summonerkit-connection-mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; color: #f06a7f; border: 1px solid #785a28; font: 700 15px/1 Georgia, serif; }
+    #${ids.overlay} .summonerkit-connection-mark { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; border: 1px solid #785a28; }
+    #${ids.overlay} .summonerkit-connection-mark img { width: 100%; height: 100%; object-fit: contain; }
     #${ids.overlay} .summonerkit-connection h1 { margin: 0 0 10px; color: #f0e6d2; font: 700 24px/1.2 "Beaufort for LOL", Georgia, serif; }
     #${ids.overlay} .summonerkit-connection p { max-width: 420px; margin: 0 auto 20px; color: #a09b8c; font: 14px/1.55 Arial, sans-serif; }
     #${ids.overlay} .summonerkit-retry { min-height: 36px; padding: 0 18px; color: #c8aa6e; background: #1e2328; border: 1px solid #785a28; font: 700 12px/1 "Beaufort for LOL", Georgia, serif; letter-spacing: 0.04em; cursor: pointer; }
@@ -141,6 +144,7 @@
     const identity = document.createElement("div");
     identity.className = "summonerkit-identity";
     identity.innerHTML = `
+      <img class="summonerkit-identity__icon" src="${config.navigationIcon}" alt="">
       <span class="summonerkit-identity__accent">SUMMONERKIT</span>
       <span aria-hidden="true">·</span>
       <span>BY MOHAMED MAGDY</span>
@@ -210,7 +214,7 @@
     content.setAttribute("aria-live", "polite");
     content.innerHTML = `
       <section class="summonerkit-connection-card">
-        <div class="summonerkit-connection-mark" aria-hidden="true">SK</div>
+        <div class="summonerkit-connection-mark" aria-hidden="true"><img src="${config.navigationIcon}" alt=""></div>
         <h1>Connecting to SummonerKit…</h1>
         <p>Checking the desktop companion on this PC.</p>
         <button class="summonerkit-retry" type="button" disabled>Connecting…</button>

@@ -1,6 +1,12 @@
-import { BellRing, Download, LockKeyhole, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CompanionCommand, RemoteCompanionSnapshot } from "@summonerkit/contracts";
+import { BellRing, Download, LockKeyhole, Power, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  PRODUCT_AUTHOR,
+  PRODUCT_ICON_DATA_URL,
+  PRODUCT_NAME,
+  type CompanionCommand,
+  type RemoteCompanionSnapshot,
+} from "@summonerkit/contracts";
 import { ChampionSelectPanel } from "./components/ChampionSelectPanel";
 import { ConnectionGate } from "./components/ConnectionGate";
 import { MobilePatchBrief } from "./components/MobileCoachPanel";
@@ -14,15 +20,34 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export function App() {
-  const params = useMemo(() => new URLSearchParams(window.location.hash.replace(/^#/u, "")), []);
+interface PairingLink {
+  roomId: string;
+  secret: string;
+  relay: string;
+  desktopKeyFingerprint: string;
+  canPair: boolean;
+}
+
+function pairingLinkFromHash(hash: string): PairingLink {
+  const params = new URLSearchParams(hash.replace(/^#/u, ""));
   const roomId = params.get("room") ?? "";
   const secret = params.get("secret") ?? "";
   const relay = params.get("relay") ?? "";
   const desktopKeyFingerprint = params.get("key") ?? "";
-  const canPair = Boolean(roomId && secret && relay && desktopKeyFingerprint);
+  return {
+    roomId,
+    secret,
+    relay,
+    desktopKeyFingerprint,
+    canPair: Boolean(roomId && secret && relay && desktopKeyFingerprint),
+  };
+}
+
+export function App() {
+  const [pairingLink, setPairingLink] = useState(() => pairingLinkFromHash(window.location.hash));
+  const { roomId, secret, relay, desktopKeyFingerprint, canPair } = pairingLink;
   const [stage, setStage] = useState<Stage>(canPair ? "ready" : "unconfigured");
-  const [message, setMessage] = useState("Scan a pairing code from SummonerKit on your PC.");
+  const [message, setMessage] = useState(`Scan a pairing code from ${PRODUCT_NAME} on your PC.`);
   const [messageTone, setMessageTone] = useState<"neutral" | "success" | "error">("neutral");
   const [snapshot, setSnapshot] = useState<RemoteCompanionSnapshot | null>(null);
   const [pending, setPending] = useState(false);
@@ -31,6 +56,21 @@ export function App() {
   const lastAlertKey = useRef<string | null>(null);
   const [remote] = useState(() => new MobileRemote());
 
+  useEffect(() => {
+    const syncPairingLink = () => {
+      const nextPairingLink = pairingLinkFromHash(window.location.hash);
+      setPairingLink(nextPairingLink);
+      setStage((current) => current === "pairing" || current === "connected"
+        ? current
+        : nextPairingLink.canPair ? "ready" : "unconfigured");
+      setMessageTone("neutral");
+      setMessage(nextPairingLink.canPair
+        ? "Pairing code loaded. Connect this phone to your desktop."
+        : `Scan a pairing code from ${PRODUCT_NAME} on your PC.`);
+    };
+    window.addEventListener("hashchange", syncPairingLink);
+    return () => window.removeEventListener("hashchange", syncPairingLink);
+  }, []);
   useEffect(() => remote.subscribe(setSnapshot), [remote]);
   useEffect(() => remote.subscribeMessage((nextMessage) => {
     setMessage(nextMessage);
@@ -65,7 +105,7 @@ export function App() {
     if (!alertsEnabled || !document.hidden || typeof Notification === "undefined") return;
     const readyCheck = key === "ready-check";
     const title = readyCheck ? "League match found" : `Your ${localAction?.type ?? "draft"} is ready`;
-    const options = { body: readyCheck ? "Open SummonerKit Mobile to accept or decline." : "Open SummonerKit Mobile to hover or lock a champion.", icon: "./icon-192.png", tag: key };
+    const options = { body: readyCheck ? `Open ${PRODUCT_NAME} Mobile to accept or decline.` : `Open ${PRODUCT_NAME} Mobile to hover or lock a champion.`, icon: "./icon-192.png", tag: key };
     void navigator.serviceWorker?.ready
       .then((registration) => registration.showNotification(title, options))
       .catch(() => { try { new Notification(title, options); } catch { /* The in-page status remains available. */ } });
@@ -129,8 +169,8 @@ export function App() {
   return (
     <main className="mobile-shell">
       <header className="brand-bar">
-        <div className="brand-mark" aria-hidden="true"><span>SK</span></div>
-        <div><p>SUMMONERKIT</p><span>Encrypted remote · by Mohamed Magdy</span></div>
+        <div className="brand-mark" role="img" aria-label={`${PRODUCT_NAME} mark`}><img src={PRODUCT_ICON_DATA_URL} alt="" /></div>
+        <div><p>{PRODUCT_NAME.toUpperCase()}</p><span>Encrypted remote · by {PRODUCT_AUTHOR}</span></div>
         <span className={`connection-pill ${connected ? "is-connected" : ""}`}><span aria-hidden="true" />{connected ? "Connected" : "Offline"}</span>
       </header>
 
@@ -154,6 +194,7 @@ export function App() {
           <section className="mobile-quick-actions" aria-label="Mobile app options">
             <button type="button" className={alertsEnabled ? "is-enabled" : ""} onClick={() => void enableAlerts()}><BellRing size={16} />{alertsEnabled ? "Alerts enabled" : "Enable alerts"}</button>
             {installPrompt ? <button type="button" onClick={() => void install()}><Download size={16} />Install app</button> : null}
+            <button type="button" className="is-danger" disabled={pending} onClick={() => send({ type: "automation.disableAll" })}><Power size={16} />Stop automation</button>
           </section>
           <QueuePanel snapshot={snapshot} pending={pending} send={send} />
           <MobilePatchBrief snapshot={snapshot} />

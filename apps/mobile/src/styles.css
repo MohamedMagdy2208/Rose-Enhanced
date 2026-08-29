@@ -31,7 +31,8 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .brand-bar p, .brand-bar span { margin: 0; }
 .brand-bar p { font-size: 12px; font-weight: 850; letter-spacing: .15em; }
 .brand-bar > div > span { color: var(--muted); font-size: 12px; }
-.brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #b87559; border-radius: 10px; color: #f4bd8c; background: #28151c; font-family: Georgia, serif; font-weight: 700; }
+.brand-mark { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid #b87559; border-radius: 10px; background: #28151c; box-shadow: 0 5px 16px rgba(0, 0, 0, .25); }
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .connection-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .connection-pill > span, .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #716169; }
 .connection-pill.is-connected { color: #a9e3c8; border-color: #315d4a; background: #12251d; }
@@ -59,6 +60,7 @@ h3 { margin: 0; font-size: 15px; }
 .mobile-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
 .mobile-quick-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 12px; color: #d9cbd0; background: #211820; border: 1px solid #493640; border-radius: 9px; font-size: 11px; font-weight: 750; }
 .mobile-quick-actions button.is-enabled { color: #b7e8d1; border-color: #315d4a; background: #17251f; }
+.mobile-quick-actions button.is-danger { color: #ffc2c4; border-color: #7d3b40; background: #30191c; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .queue-panel { margin-top: 12px; padding: 18px; }
 .phase-badge { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap; }

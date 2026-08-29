@@ -1,4 +1,5 @@
 import {
+  PRODUCT_NAME,
   companionCommandSchema,
   type CommandResult,
   type CompanionCommand,
@@ -9,10 +10,12 @@ import { z } from "zod";
 
 const claimResponseSchema = z.object({
   deviceId: z.string().uuid(),
-  accessToken: z.string().min(32).max(256),
-  websocketUrl: z.string().url(),
+  accessToken: z.string().regex(/^[A-Za-z0-9_-]{32,256}$/u),
+  websocketUrl: z.string().url().max(2_048),
   desktopPublicKey: z.record(z.string(), z.unknown()),
-});
+}).strict();
+
+const MAX_REMOTE_FRAME_BYTES = 64 * 1024;
 
 type RemoteListener = (snapshot: RemoteCompanionSnapshot) => void;
 type ConnectionListener = (connected: boolean) => void;
@@ -21,6 +24,7 @@ type ClaimResponse = z.infer<typeof claimResponseSchema>;
 
 interface ActiveSession {
   roomId: string;
+  relayUrl: string;
   claim: ClaimResponse;
   privateKey: JsonWebKey;
 }
@@ -53,6 +57,8 @@ export class MobileRemote {
 
   async pair(request: PairingRequest): Promise<void> {
     this.disconnect();
+    if (!/^[A-Za-z0-9_-]{8,128}$/u.test(request.roomId)) throw new Error("The pairing code contains an invalid room identifier.");
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(request.desktopKeyFingerprint)) throw new Error("The pairing code contains an invalid desktop identity.");
     if (!secureRelayUrl(request.relayUrl)) throw new Error("The pairing code contains an insecure relay URL.");
     const keys = await generateDeviceKeys();
     const pairingProof = await createPairingProof(request.oneTimeSecret, request.roomId, keys.publicKey);
@@ -60,7 +66,8 @@ export class MobileRemote {
     if (await publicKeyFingerprint(claim.desktopPublicKey) !== request.desktopKeyFingerprint) {
       throw new Error("The relay returned a different desktop identity. Pairing was stopped.");
     }
-    this.session = { roomId: request.roomId, claim, privateKey: keys.privateKey };
+    validateRelaySocketUrl(claim.websocketUrl, request.relayUrl, request.roomId);
+    this.session = { roomId: request.roomId, relayUrl: request.relayUrl, claim, privateKey: keys.privateKey };
     this.reconnectEnabled = true;
     await this.openRemoteSocket(claim);
   }
@@ -70,6 +77,10 @@ export class MobileRemote {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairingProof, deviceName: request.deviceName, publicKey }),
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
+      signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) throw new Error(`Pairing was rejected (${response.status}).`);
     return claimResponseSchema.parse(await response.json());
@@ -83,7 +94,7 @@ export class MobileRemote {
       await deriveSessionKeys("mobile", session.roomId, session.privateKey, claim.desktopPublicKey),
     );
     this.authenticated = false;
-    const websocketUrl = new URL(claim.websocketUrl);
+    const websocketUrl = validateRelaySocketUrl(claim.websocketUrl, session.relayUrl, session.roomId);
     const socket = new WebSocket(websocketUrl, remoteWebSocketProtocols(claim.accessToken));
     this.socket = socket;
     try {
@@ -134,7 +145,7 @@ export class MobileRemote {
   async dispatch(command: CompanionCommand): Promise<CommandResult> {
     const safeCommand = companionCommandSchema.parse(command);
     if (!this.authenticated || !this.channel || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error("This phone is not connected to SummonerKit.");
+      throw new Error(`This phone is not connected to ${PRODUCT_NAME}.`);
     }
     const id = crypto.randomUUID();
     const response = new Promise<CommandResult>((resolve, reject) => {
@@ -197,6 +208,10 @@ export class MobileRemote {
 
   private async receive(raw: string): Promise<void> {
     if (!this.channel) return;
+    if (new TextEncoder().encode(raw).byteLength > MAX_REMOTE_FRAME_BYTES) {
+      this.disconnect();
+      return;
+    }
     try {
       const message = await this.channel.open<Record<string, unknown>>(JSON.parse(raw) as EncryptedEnvelope);
       if (message.kind === "snapshot" && message.snapshot) {
@@ -233,10 +248,22 @@ export function reconnectDelayMs(attempt: number): number {
 }
 
 function secureRelayUrl(value: string): boolean {
+  if (value.length > 2_048) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" || (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1"));
+    return !url.username && !url.password && !url.search && !url.hash && url.pathname === "/"
+      && (url.protocol === "https:" || (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")));
   } catch {
     return false;
   }
+}
+
+export function validateRelaySocketUrl(candidate: string, relayUrl: string, roomId: string): URL {
+  const socket = new URL(candidate);
+  const relay = new URL(relayUrl);
+  const expectedProtocol = relay.protocol === "https:" ? "wss:" : "ws:";
+  if (socket.host !== relay.host || socket.protocol !== expectedProtocol || socket.username || socket.password || socket.search || socket.hash || socket.pathname !== `/rooms/${roomId}/socket`) {
+    throw new Error("The mobile relay returned an unexpected WebSocket endpoint.");
+  }
+  return socket;
 }

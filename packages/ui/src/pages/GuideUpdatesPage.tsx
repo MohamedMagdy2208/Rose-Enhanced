@@ -12,12 +12,14 @@ import {
 } from "lucide-react";
 import {
   PRODUCT_AUTHOR,
+  PRODUCT_TAGLINE,
   PRODUCT_NAME,
   PRODUCT_URLS,
   type AppUpdateState,
   type CompanionBridge,
 } from "@summonerkit/contracts";
 import { StatusPill } from "../components/StatusPill";
+import { BrandMark } from "../components/BrandMark";
 
 export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
   const { update, checking, actionError, check, restart } = useAppUpdates(bridge);
@@ -51,11 +53,11 @@ export function GuideUpdatesPage({ bridge }: { bridge: CompanionBridge }) {
         </section>
 
         <section className="panel about-panel" aria-labelledby="about-title">
-          <div className="about-mark" aria-hidden="true">SK</div>
+          <BrandMark className="about-mark" />
           <p className="eyebrow">About</p>
           <h2 id="about-title">{PRODUCT_NAME}</h2>
           <p className="creator-line">Created and maintained by {PRODUCT_AUTHOR}.</p>
-          <p>A privacy-first Windows companion with collection, automation, ARAM, mobile control, evidence-based builds, and local performance coaching.</p>
+          <p>{PRODUCT_TAGLINE} Collection, automation, ARAM, mobile control, evidence-based builds, and local performance coaching stay in one local companion.</p>
           <div className="about-links">
             <a href={PRODUCT_URLS.source} target="_blank" rel="noreferrer"><GitFork size={15} /> Source code</a>
             <a href={PRODUCT_URLS.license} target="_blank" rel="noreferrer"><Copyright size={15} /> Source-available license</a>

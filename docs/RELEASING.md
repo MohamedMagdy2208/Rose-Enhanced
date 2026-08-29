@@ -21,6 +21,7 @@ generated Setup executable has a valid Authenticode signature.
    npm ci
    npm run typecheck
    npm test
+   npm run test:coverage
    npm audit --omit=dev --audit-level=high
    npm run make
    ```

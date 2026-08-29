@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from "@summonerkit/contracts";
+
 export interface ReadyCheckWindow {
   isDestroyed(): boolean;
   isVisible(): boolean;
@@ -25,7 +27,7 @@ export function applyReadyCheckWindowPolicy(options: ReadyCheckWindowPolicyOptio
     if (window && !window.isDestroyed() && window.isVisible()) window.hide();
     options.notify(
       "League match found",
-      "A ready check is active. SummonerKit is in the tray so the League client stays visible.",
+      `A ready check is active. ${PRODUCT_NAME} is in the tray so the League client stays visible.`,
     );
   }
   return options.active;

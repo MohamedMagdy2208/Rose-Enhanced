@@ -2,7 +2,7 @@ import type { CompanionCommand } from "@summonerkit/contracts";
 import { createDefaultSettings } from "@summonerkit/core";
 import { describe, expect, it, vi } from "vitest";
 import { CompanionStore } from "./companion-store";
-import { isRemoteCommandAllowed, probeRemoteDeployment, remoteSnapshot } from "./remote-service";
+import { isRemoteCommandAllowed, probeRemoteDeployment, remoteSnapshot, validatedRelaySocketUrl } from "./remote-service";
 
 describe("remote command allowlist", () => {
   it("verifies the deployed relay protocol, allowed origin, and mobile shell", async () => {
@@ -17,8 +17,25 @@ describe("remote command allowlist", () => {
     await expect(probeRemoteDeployment("https://relay.example", "https://mobile.example/app/", fetcher as typeof fetch)).rejects.toThrow("relay allows https://wrong.example");
   });
 
+  it.each([
+    "https://attacker.example/rooms/room-12345678/socket",
+    "wss://relay.example/rooms/room-12345678/socket?token=leak",
+    "wss://relay.example/rooms/room-12345678/other",
+  ])("rejects an unexpected relay WebSocket endpoint %s", (candidate) => {
+    expect(() => validatedRelaySocketUrl(candidate, "https://relay.example", "room-12345678")).toThrow(/unexpected WebSocket endpoint/u);
+  });
+
+  it("pins a relay WebSocket endpoint to the configured origin and room", () => {
+    expect(validatedRelaySocketUrl(
+      "wss://relay.example/rooms/room-12345678/socket",
+      "https://relay.example/",
+      "room-12345678",
+    ).toString()).toBe("wss://relay.example/rooms/room-12345678/socket");
+  });
+
   it("allows only the narrow mobile control surface", () => {
     const allowed: CompanionCommand[] = [
+      { type: "automation.disableAll" },
       { type: "readyCheck.accept" },
       { type: "queue.start" },
       { type: "champSelect.lock", championId: 103 },
@@ -32,6 +49,7 @@ describe("remote command allowlist", () => {
       { type: "presence.set", availability: "away" },
       { type: "profile.setChampionPriorities", profileId: "default", pickPriority: [103, 7], banPriority: [238] },
       { type: "automation.acknowledgeRisk" },
+      { type: "automation.setEnabled", feature: "autoAccept", enabled: true },
       { type: "integration.launch", integrationId: "rose" },
       { type: "clientTab.repair" },
       { type: "remote.configure", relayUrl: "https://relay.example", mobileUrl: "https://mobile.example", adminSecret: "x".repeat(32) },

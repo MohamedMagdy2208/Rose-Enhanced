@@ -1,4 +1,4 @@
-import type { RunePreset } from "@summonerkit/contracts";
+import { PRODUCT_NAME, type RunePreset } from "@summonerkit/contracts";
 import type { LcuClient } from "./lcu/lcu-client";
 
 interface RunePage {
@@ -13,7 +13,7 @@ export class RunePageService {
     if (preset.selectedPerkIds.length !== 9) {
       throw new Error("A complete rune recommendation must contain exactly nine perk selections.");
     }
-    const safeName = `SummonerKit · ${name}`.slice(0, 40);
+    const safeName = `${PRODUCT_NAME} · ${name}`.slice(0, 40);
     const pages = await this.lcu.get<RunePage[]>("/lol-perks/v1/pages");
     const existing = pages.find((page) => page.name === safeName);
     const payload = {

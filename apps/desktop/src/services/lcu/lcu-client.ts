@@ -22,6 +22,15 @@ export class LcuHttpError extends Error {
   }
 }
 
+export class LcuRequestTimeoutError extends Error {
+  constructor(
+    public readonly method: LcuMethod,
+    public readonly endpoint: string,
+  ) {
+    super(`LCU ${method} ${endpoint} timed out.`);
+  }
+}
+
 type LcuMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const unavailableCapabilities = (): CapabilitySet => ({
@@ -37,7 +46,23 @@ const unavailableCapabilities = (): CapabilitySet => ({
 });
 
 const MAX_LCU_RESPONSE_BYTES = 64 * 1024 * 1024;
+const MAX_LCU_EVENT_BYTES = 8 * 1024 * 1024;
+const MAX_LCU_REQUEST_BYTES = 2 * 1024 * 1024;
 const GAME_DATA_ASSET_PREFIX = "/lol-game-data/assets/";
+
+export function serializeLcuRequestBody(body: unknown): Buffer | null {
+  if (body === undefined) return null;
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(body);
+  } catch {
+    throw new Error("LCU request body is not JSON serializable.");
+  }
+  if (typeof serialized !== "string") throw new Error("LCU request body is not JSON serializable.");
+  const result = Buffer.from(serialized, "utf8");
+  if (result.byteLength > MAX_LCU_REQUEST_BYTES) throw new Error("LCU request body exceeded the local safety limit.");
+  return result;
+}
 
 export function allowedLcuAssetEndpoint(endpoint: string): boolean {
   if (!endpoint.startsWith(GAME_DATA_ASSET_PREFIX) || endpoint.includes("\\") || endpoint.includes("\0")) return false;
@@ -114,6 +139,19 @@ export class LcuClient extends EventEmitter {
     return this.requestJson<T>("DELETE", endpoint);
   }
 
+  async respondToReadyCheck(response: "accept" | "decline"): Promise<void> {
+    const endpoint = `/lol-matchmaking/v1/ready-check/${response}`;
+    try {
+      await this.post<void>(endpoint, {});
+    } catch (error) {
+      if (!(error instanceof LcuRequestTimeoutError)) throw error;
+      const readyCheck = await this.get<{ playerResponse?: string }>("/lol-matchmaking/v1/ready-check");
+      const expectedResponse = response === "accept" ? "Accepted" : "Declined";
+      if (readyCheck.playerResponse !== expectedResponse) throw error;
+      this.logger.info("Confirmed ready-check response after an LCU timeout", { response });
+    }
+  }
+
   async restartLeagueUx(): Promise<void> {
     await this.post<void>("/riotclient/kill-and-restart-ux");
   }
@@ -156,6 +194,9 @@ export class LcuClient extends EventEmitter {
     const socket = new WebSocket(`wss://127.0.0.1:${credentials.port}/`, {
       rejectUnauthorized: false,
       headers: { Authorization: authorization },
+      maxPayload: MAX_LCU_EVENT_BYTES,
+      perMessageDeflate: false,
+      handshakeTimeout: 8_000,
     });
     this.socket = socket;
 
@@ -261,7 +302,12 @@ export class LcuClient extends EventEmitter {
     if (!endpoint.startsWith("/") || endpoint.length > 4_096 || /[\\\0\r\n]/u.test(endpoint)) {
       return Promise.reject(new Error("Invalid LCU endpoint."));
     }
-    const serialized = body === undefined ? null : Buffer.from(JSON.stringify(body), "utf8");
+    let serialized: Buffer | null;
+    try {
+      serialized = serializeLcuRequestBody(body);
+    } catch (error) {
+      return Promise.reject(error);
+    }
 
     return new Promise((resolve, reject) => {
       const request = https.request(
@@ -314,7 +360,7 @@ export class LcuClient extends EventEmitter {
           });
         },
       );
-      request.once("timeout", () => request.destroy(new Error(`LCU ${method} ${endpoint} timed out.`)));
+      request.once("timeout", () => request.destroy(new LcuRequestTimeoutError(method, endpoint)));
       request.once("error", reject);
       if (serialized) request.write(serialized);
       request.end();

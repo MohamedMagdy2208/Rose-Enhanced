@@ -1,6 +1,6 @@
 # Mobile deployment and verification
 
-SummonerKit Remote uses two independently deployed pieces:
+SummonerKit Mobile uses two independently deployed pieces:
 
 - the static mobile PWA on GitHub Pages;
 - the opaque WebSocket relay on Cloudflare Workers and one Durable Object per

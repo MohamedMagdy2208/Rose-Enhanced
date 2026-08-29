@@ -1,4 +1,4 @@
-const sensitiveKey = /password|token|authorization|secret|puuid|riot.?id|summoner.?id/i;
+const sensitiveKey = /password|token|authorization|secret|private.?key|credential|cookie|session.?id|pairing.?url|puuid|riot.?id|summoner.?id/i;
 
 function redactString(value: string): string {
   return value
@@ -7,7 +7,7 @@ function redactString(value: string): string {
     .replace(/riot:[^@\s]+/gi, "riot:[REDACTED]")
     .replace(/(--remoting-auth-token=)([^\s]+)/gi, "$1[REDACTED]")
     .replace(/(summonerkit-(?:auth|session)\.)([A-Za-z0-9_-]+)/gi, "$1[REDACTED]")
-    .replace(/([?&#](?:token|secret|password)=)([^&\s]+)/gi, "$1[REDACTED]");
+    .replace(/([?&#](?:token|secret|password|api[_-]?key|access[_-]?token)=)([^&\s]+)/gi, "$1[REDACTED]");
 }
 
 export function redactSensitive(value: unknown, key = ""): unknown {

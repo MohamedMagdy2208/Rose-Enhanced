@@ -19,11 +19,38 @@ export function MobileControlPage({
   const [relayUrl, setRelayUrl] = useState(snapshot.remote.relayUrl ?? "");
   const [mobileUrl, setMobileUrl] = useState(snapshot.remote.mobileUrl ?? "https://mohamedmagdy2208.github.io/SummonerKit/");
   const [adminSecret, setAdminSecret] = useState("");
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
 
   useEffect(() => {
     if (snapshot.remote.relayUrl) setRelayUrl(snapshot.remote.relayUrl);
     if (snapshot.remote.mobileUrl) setMobileUrl(snapshot.remote.mobileUrl);
   }, [snapshot.remote.mobileUrl, snapshot.remote.relayUrl]);
+
+  useEffect(() => {
+    if (!offer) {
+      setSecondsRemaining(0);
+      return;
+    }
+    const expiresAt = Date.parse(offer.expiresAt);
+    const updateExpiry = () => {
+      const next = Number.isFinite(expiresAt) ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1_000)) : 0;
+      setSecondsRemaining(next);
+      if (next === 0) {
+        setOffer(null);
+        setMessage("Pairing code expired. Create a new QR code to connect a phone.");
+      }
+    };
+    updateExpiry();
+    const timer = window.setInterval(updateExpiry, 1_000);
+    return () => window.clearInterval(timer);
+  }, [offer]);
+
+  useEffect(() => {
+    if (snapshot.remote.status !== "connected" || !offer) return;
+    setOffer(null);
+    setSecondsRemaining(0);
+    setMessage("Phone paired. The one-time QR secret was cleared.");
+  }, [offer, snapshot.remote.status]);
 
   const createPairing = async () => {
     setBusy(true);
@@ -52,6 +79,7 @@ export function MobileControlPage({
     setBusy(true);
     try {
       await onCommand({ type: "remote.configure", relayUrl, mobileUrl, adminSecret });
+      setOffer(null);
       setAdminSecret("");
       setMessage("Configuration submitted. The relay status above confirms when it is ready.");
     } finally {
@@ -98,8 +126,9 @@ export function MobileControlPage({
           {offer ? (
             <div className="pairing-code">
               <img src={offer.qrDataUrl} alt="One-time SummonerKit mobile pairing QR code" />
-              <p>Expires {formatRelativeTime(offer.expiresAt)}</p>
-              <button className="text-button" type="button" onClick={() => void copyLink()}><Copy size={14} /> Copy private link</button>
+              <p className="pairing-code__expiry">Expires in <strong>{secondsRemaining > 0 ? formatPairingExpiry(secondsRemaining) : "checking…"}</strong></p>
+              <button className="text-button" type="button" onClick={() => void copyLink()}><Copy size={14} /> Copy link if the camera cannot scan</button>
+              <p className="pairing-code__warning"><LockKeyhole size={13} /> Never post this QR code or private link.</p>
             </div>
           ) : <div className="pairing-placeholder"><Smartphone size={38} /><span>No active pairing code</span></div>}
         </section>
@@ -125,4 +154,10 @@ export function MobileControlPage({
       </section>
     </div>
   );
+}
+
+function formatPairingExpiry(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }

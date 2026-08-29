@@ -1,6 +1,8 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
+const maximumLockfileBytes = 4 * 1024;
+
 export interface LcuCredentials {
   processName: string;
   processId: number;
@@ -81,15 +83,17 @@ export async function readLcuCredentials(configuredPath: string | null): Promise
   const leaguePath = await discoverLeaguePath(configuredPath);
   if (!leaguePath) return null;
   const lockfilePath = path.join(leaguePath, "lockfile");
-  const parts = (await readFile(lockfilePath, "utf8")).trim().split(":");
+  const lockfile = await readFile(lockfilePath, "utf8");
+  if (Buffer.byteLength(lockfile, "utf8") > maximumLockfileBytes) throw new Error("League lockfile is unexpectedly large.");
+  const parts = lockfile.trim().split(":");
   if (parts.length !== 5) throw new Error("League lockfile has an unexpected format.");
   const [processName, processId, port, password, protocol] = parts;
-  if (!processName || !processId || !port || !password || protocol !== "https") {
+  if (!processName || !/^[A-Za-z0-9_.-]{1,128}$/u.test(processName) || !processId || !port || !password || password.length > 256 || /[\r\n]/u.test(password) || protocol !== "https") {
     throw new Error("League lockfile contains invalid connection data.");
   }
   const parsedProcessId = Number(processId);
   const parsedPort = Number(port);
-  if (!Number.isInteger(parsedProcessId) || !Number.isInteger(parsedPort)) {
+  if (!Number.isSafeInteger(parsedProcessId) || parsedProcessId <= 0 || !Number.isSafeInteger(parsedPort) || parsedPort < 1 || parsedPort > 65_535) {
     throw new Error("League lockfile contains invalid numeric fields.");
   }
   return { processName, processId: parsedProcessId, port: parsedPort, password, protocol, lockfilePath };

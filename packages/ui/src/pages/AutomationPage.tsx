@@ -1,4 +1,4 @@
-import { Bot, Check, Eye, ExternalLink, MonitorUp, MousePointerClick, ShieldAlert, X, Zap } from "lucide-react";
+import { Bot, Check, Eye, ExternalLink, MonitorUp, MousePointerClick, Power, ShieldAlert, X, Zap } from "lucide-react";
 import type { AutomationSettings, CompanionCommand, CompanionSnapshot } from "@summonerkit/contracts";
 import type { AppSurface } from "../components/AppShell";
 import { ChampionPlanEditor } from "../components/ChampionPlanEditor";
@@ -29,6 +29,7 @@ export function AutomationPage({
   onCommand: (command: CompanionCommand) => Promise<void>;
 }) {
   const { automation, audit, profiles } = snapshot;
+  const hasEnabledFeature = featureCopy.some((feature) => automation[feature.key]);
   const championNames = new Map(snapshot.collection.champions.map((champion) => [champion.id, champion.name]));
   const championName = (championId: number | null) => championId ? championNames.get(championId) ?? `Champion ${championId}` : null;
 
@@ -86,7 +87,13 @@ export function AutomationPage({
 
       <div className="automation-layout">
         <section className="panel feature-toggles">
-          <div className="panel__header"><div><p className="eyebrow">Global controls</p><h2>Automation features</h2></div><StatusPill tone={automation.riskAcknowledged ? "accent" : "neutral"}>{automation.riskAcknowledged ? "Opt-in" : "Locked"}</StatusPill></div>
+          <div className="panel__header">
+            <div><p className="eyebrow">Global controls</p><h2>Automation features</h2></div>
+            <div className="panel__header-actions">
+              {hasEnabledFeature ? <button className="button button--danger button--compact" type="button" onClick={() => onCommand({ type: "automation.disableAll" })}><Power size={14} aria-hidden="true" /> Disable all</button> : null}
+              <StatusPill tone={automation.riskAcknowledged ? "accent" : "neutral"}>{automation.riskAcknowledged ? "Opt-in" : "Locked"}</StatusPill>
+            </div>
+          </div>
           {featureCopy.map((feature) => (
             <Toggle
               key={feature.key}
@@ -113,7 +120,7 @@ export function AutomationPage({
         <ChampionPlanEditor profiles={profiles} champions={snapshot.collection.champions} onCommand={onCommand} />
         <section className="desktop-handoff">
           <MonitorUp size={21} aria-hidden="true" />
-          <div><p className="eyebrow">Advanced configuration</p><h2>Queue, role, runes, and timing stay on desktop</h2><p>You can edit champion priorities here inside Rose. Use desktop only for the less frequent profile details and execution-mode acknowledgement.</p></div>
+          <div><p className="eyebrow">Advanced configuration</p><h2>Queue, role, runes, and timing stay on desktop</h2><p>You can edit champion priorities here in the SummonerKit client tab. Use the desktop app for less frequent profile details and execution-mode acknowledgement.</p></div>
           <button className="button button--secondary" type="button" onClick={() => onCommand({ type: "desktop.open" })}>Open full profile editor</button>
         </section>
       </>}

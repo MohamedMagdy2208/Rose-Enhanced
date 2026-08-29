@@ -28,6 +28,11 @@ export const automationProfileSchema = z.object({
 
 export const companionCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("desktop.open") }),
+  z.object({
+    type: z.literal("startup.setEnabled"),
+    setting: z.enum(["launchOnWindowsStartup", "openOnLeagueDetected"]),
+    enabled: z.boolean(),
+  }),
   z.object({ type: z.literal("presence.set"), availability: z.enum(["online", "away"]) }),
   z.object({ type: z.literal("automation.acknowledgeRisk") }),
   z.object({
@@ -41,6 +46,7 @@ export const companionCommandSchema = z.discriminatedUnion("type", [
     feature: z.enum(["autoAccept", "autoPick", "autoBan", "autoSpells", "autoRunes"]),
     enabled: z.boolean(),
   }),
+  z.object({ type: z.literal("automation.disableAll") }),
   z.object({ type: z.literal("profile.save"), profile: automationProfileSchema }),
   z.object({
     type: z.literal("profile.setChampionPriorities"),

@@ -155,6 +155,15 @@ describe("AutomationEngine", () => {
     expect(duplicate).toEqual([]);
   });
 
+  it("releases an unconfirmed ready-check response for one controlled retry", () => {
+    engine.evaluateReadyCheck({ sessionId: "ready-retry", state: "InProgress", nowMs: 100, profile, settings });
+    expect(engine.evaluateReadyCheck({ sessionId: "ready-retry", state: "InProgress", nowMs: 1_100, profile, settings })[0]?.type).toBe("acceptReadyCheck");
+
+    engine.releaseReadyCheck("ready-retry");
+
+    expect(engine.evaluateReadyCheck({ sessionId: "ready-retry", state: "InProgress", nowMs: 1_101, profile, settings })[0]?.type).toBe("acceptReadyCheck");
+  });
+
   it("does nothing until risk is acknowledged", () => {
     expect(
       engine.evaluateChampSelect(
