@@ -6,6 +6,7 @@ import {
   Boxes,
   ChartNoAxesCombined,
   Dices,
+  FlaskConical,
   Gauge,
   Menu,
   MonitorUp,
@@ -17,11 +18,13 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import { PRODUCT_AUTHOR, PRODUCT_NAME } from "@summonerkit/contracts";
 import type { ConnectionStatus } from "@summonerkit/contracts";
+import { BrandMark } from "./BrandMark";
 import { StatusPill } from "./StatusPill";
 
 export type AppSurface = "desktop" | "client" | "mobile";
-export type PageId = "setup" | "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "guide" | "settings";
+export type PageId = "setup" | "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "testlab" | "guide" | "settings";
 
 const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOnly?: boolean }> = [
   { id: "setup", label: "Setup", icon: WandSparkles, desktopOnly: true },
@@ -31,8 +34,11 @@ const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOn
   { id: "automation", label: "Automation", icon: Bot },
   { id: "aram", label: "ARAM", icon: Dices },
   { id: "integrations", label: "Integrations", icon: PlugZap, desktopOnly: true },
-  { id: "mobile", label: "Mobile Control", icon: Smartphone, desktopOnly: true },
+  // The client tab can safely show mobile connection state. Pairing secrets,
+  // relay configuration, and device revocation remain desktop-only in the page.
+  { id: "mobile", label: "Mobile Control", icon: Smartphone },
   { id: "doctor", label: "Connection Doctor", icon: Stethoscope, desktopOnly: true },
+  { id: "testlab", label: "Test Lab", icon: FlaskConical, desktopOnly: true },
   { id: "guide", label: "Guide & Updates", icon: BookOpenCheck, desktopOnly: true },
   { id: "settings", label: "Diagnostics", icon: Settings, desktopOnly: true },
 ];
@@ -89,7 +95,7 @@ export function AppShell({
 
       <aside className={`sidebar${menuOpen ? " sidebar--open" : ""}`} aria-label="Primary navigation">
         <Brand />
-        {surface === "client" ? <div className="surface-badge"><span>Inside Rose</span><small>Desktop-backed panel</small></div> : null}
+        {surface === "client" ? <div className="surface-badge"><span>Inside SummonerKit</span><small>League client tab · desktop-backed</small></div> : null}
         <nav className="sidebar__nav">
           {visibleItems.map(({ id, label, icon: Icon }) => (
             <button
@@ -151,14 +157,12 @@ export function navigationForSurface(surface: AppSurface): PageId[] {
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label="SummonerKit by Mohamed Magdy">
-      <span className="brand__mark" aria-hidden="true">
-        <span>SK</span>
-      </span>
+    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label={`${PRODUCT_NAME} by ${PRODUCT_AUTHOR}`}>
+      <BrandMark className="brand__mark" />
       {!compact ? (
         <span className="brand__copy">
-          <strong>SummonerKit</strong>
-          <small>by Mohamed Magdy</small>
+          <strong>{PRODUCT_NAME}</strong>
+          <small>by {PRODUCT_AUTHOR}</small>
         </span>
       ) : null}
     </div>

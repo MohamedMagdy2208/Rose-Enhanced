@@ -12,7 +12,9 @@ import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { InsightsPage } from "./pages/InsightsPage";
 import { GuideUpdatesPage } from "./pages/GuideUpdatesPage";
 import { MobileControlPage } from "./pages/MobileControlPage";
+import { ClientMobileControlPage } from "./pages/ClientMobileControlPage";
 import { SetupPage } from "./pages/SetupPage";
+import { TestLabPage } from "./pages/TestLabPage";
 
 const onboardingStorageKey = "summonerkit:onboarding-complete:v1";
 
@@ -43,15 +45,16 @@ function App({ surface }: { surface: AppSurface }) {
     <AppShell activePage={page} onPageChange={setPage} surface={surface} connectionStatus={snapshot.connection.status} phase={snapshot.connection.phase} onOpenDesktop={surface === "client" ? () => void onCommand({ type: "desktop.open" }) : null}>
       {message ? <div className="toast" role="status">{message}</div> : null}
       {page === "setup" && surface === "desktop" ? <SetupPage snapshot={snapshot} onCommand={onCommand} onNavigate={setPage} onComplete={() => { try { window.localStorage.setItem(onboardingStorageKey, "true"); } catch { /* Keep setup usable when storage is unavailable. */ } setPage("dashboard"); }} /> : null}
-      {page === "dashboard" ? <DashboardPage snapshot={snapshot} onNavigate={setPage} onCommand={onCommand} /> : null}
+      {page === "dashboard" ? <DashboardPage snapshot={snapshot} onNavigate={setPage} onCommand={onCommand} canConfigureMobile={surface === "desktop"} /> : null}
       {page === "collection" ? <CollectionPage collection={snapshot.collection} phase={snapshot.connection.phase} onCommand={onCommand} /> : null}
       {page === "insights" ? <InsightsPage snapshot={snapshot} onCommand={onCommand} /> : null}
       {page === "automation" ? <AutomationPage snapshot={snapshot} surface={surface} onCommand={onCommand} /> : null}
       {page === "aram" ? <AramPage snapshot={snapshot} onCommand={onCommand} /> : null}
       {page === "integrations" && surface === "desktop" ? <IntegrationsPage integrations={snapshot.integrations} onCommand={onCommand} /> : null}
-      {page === "mobile" && surface === "desktop" ? <MobileControlPage snapshot={snapshot} bridge={bridge} onCommand={onCommand} /> : null}
+      {page === "mobile" ? surface === "desktop" ? <MobileControlPage snapshot={snapshot} bridge={bridge} onCommand={onCommand} /> : <ClientMobileControlPage snapshot={snapshot} onCommand={onCommand} /> : null}
       {page === "doctor" && surface === "desktop" ? <ConnectionDoctorPage snapshot={snapshot} onCommand={onCommand} /> : null}
       {page === "guide" && surface === "desktop" ? <GuideUpdatesPage bridge={bridge} /> : null}
+      {page === "testlab" && surface === "desktop" ? <TestLabPage snapshot={snapshot} /> : null}
       {page === "settings" && surface === "desktop" ? <DiagnosticsPage snapshot={snapshot} /> : null}
     </AppShell>
   );
