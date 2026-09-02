@@ -173,12 +173,14 @@ For the most reliable first setup, use this order:
 2. Open the separately installed **Rose** application.
 3. Start the **League client** so Pengu loads the SummonerKit tab.
 
-To start SummonerKit automatically, open **Setup** and enable **Start with
-Windows**. The engine starts hidden in the tray at sign-in and keeps watching
-for League. Enable **Open when League connects** as well if you want the
-desktop window to appear when League is detected. Both options are also
-available under **Startup** in the tray menu. SummonerKit does not start Rose,
-the League client, or the game process.
+New installations enable **Start with Windows**, **Open when League connects**,
+and **Open when Rose starts**. The engine starts hidden in the tray at sign-in,
+keeps watching for League and Rose, and reveals the desktop window when either
+configured application appears. Existing installations retain their saved
+Windows and League choices. All three switches are available in **Setup**, on
+**Overview**, and under **Startup** in the tray menu. Turn off either reveal
+switch for a tray-only workflow. SummonerKit does not start Rose, the League
+client, or the game process.
 
 After the client tab has been installed and loaded once, the exact order of the
 first two applications is less important. SummonerKit must still be running
@@ -186,7 +188,10 @@ before you use the SummonerKit tab because it owns the secure local bridge and a
 League connections. If League is already open during a plugin install, repair,
 or update, SummonerKit asks League to reload only its UI automatically from
 Home or Lobby. The reload is deferred during matchmaking, ready check, champion
-select, and active games. The launcher deliberately does not start Rose or
+select, and active games. If the client tab cannot reach the local engine, its
+**Start & reconnect** button asks Windows to open the registered SummonerKit app
+link and retries the bridge for up to 15 seconds. Run the installed desktop app
+once to register that link. The launcher deliberately does not start Rose or
 League for you.
 
 When a ready check starts, the desktop window hides to the tray and a Windows

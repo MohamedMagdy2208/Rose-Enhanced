@@ -5,6 +5,9 @@ import { isClientSurfaceCommandAllowed } from "./client-surface-policy";
 describe("client surface command policy", () => {
   const matchTimeCommands: CompanionCommand[] = [
     { type: "desktop.open" },
+    { type: "startup.setEnabled", setting: "launchOnWindowsStartup", enabled: true },
+    { type: "startup.setEnabled", setting: "openOnLeagueDetected", enabled: true },
+    { type: "startup.setEnabled", setting: "openOnRoseDetected", enabled: true },
     { type: "presence.set", availability: "away" },
     { type: "automation.setEnabled", feature: "autoAccept", enabled: true },
     { type: "automation.disableAll" },

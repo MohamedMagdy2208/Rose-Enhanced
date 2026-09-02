@@ -15,6 +15,7 @@ import { MatchHistoryPanel } from "../components/MatchHistoryPanel";
 import { MatchReportCardsPanel } from "../components/MatchReportCardsPanel";
 import { PatchCenterPanel } from "../components/PatchCenterPanel";
 import { RuneRecommendationsPanel } from "../components/RuneRecommendationsPanel";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 
 const audiences: Array<{ id: RuneRecommendationAudience | "all"; label: string }> = [
   { id: "all", label: "All samples" },
@@ -80,9 +81,7 @@ export function InsightsPage({ snapshot, onCommand }: { snapshot: CompanionSnaps
       <section className="insights-toolbar" aria-label="Champion and recommendation filters">
         <label><span>Champion</span><select value={championId ?? ""} onChange={(event) => setChampionId(event.target.value ? Number(event.target.value) : null)}><option value="">Choose a champion</option>{availableChampionIds.map((id) => <option key={id} value={id}>{championById.get(id)?.name ?? `Champion ${id}`}</option>)}</select></label>
         <label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value as RuneRecommendationRole)}>{roles.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
-        <div className="segmented-control insights-audience" aria-label="Player sample">
-          {audiences.map((option) => <button key={option.id} className={audience === option.id ? "active" : ""} type="button" aria-pressed={audience === option.id} onClick={() => setAudience(option.id)}>{option.label}</button>)}
-        </div>
+        <SegmentedTabs className="insights-audience" value={audience} options={audiences.map((option) => ({ value: option.id, label: option.label }))} onChange={setAudience} label="Player sample" />
       </section>
 
       <div className="coach-overview-grid">

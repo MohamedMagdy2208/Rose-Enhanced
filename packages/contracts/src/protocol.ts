@@ -1,2 +1,4 @@
 export const CLIENT_TAB_PROTOCOL_VERSION = 6;
-export const CLIENT_TAB_PLUGIN_VERSION = "0.11.0";
+export const CLIENT_TAB_PLUGIN_VERSION = "0.11.6";
+export const DESKTOP_LAUNCH_PROTOCOL_SCHEME = "summonerkit";
+export const DESKTOP_LAUNCH_URL = `${DESKTOP_LAUNCH_PROTOCOL_SCHEME}://open`;

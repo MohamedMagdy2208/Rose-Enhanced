@@ -10,6 +10,7 @@ import {
   TimerOff,
   Users,
 } from "lucide-react";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import type {
   AutomationActionType,
   AutomationProfile,
@@ -286,9 +287,12 @@ export function TestLabPage({ snapshot }: { snapshot: CompanionSnapshot }) {
             </label>
             <fieldset className="field test-lab-action-field">
               <legend>Local action</legend>
-              <div className="segmented-control" aria-label="Local champion-select action">
-                {(["pick", "ban"] as const).map((action) => <button key={action} type="button" className={actionType === action ? "active" : ""} aria-pressed={actionType === action} onClick={() => { setActionType(action); reset(); }}>{action}</button>)}
-              </div>
+              <SegmentedTabs
+                value={actionType}
+                options={[{ value: "pick", label: "Pick" }, { value: "ban", label: "Ban" }]}
+                onChange={(action) => { setActionType(action); reset(); }}
+                label="Local champion-select action"
+              />
             </fieldset>
           </div>
 

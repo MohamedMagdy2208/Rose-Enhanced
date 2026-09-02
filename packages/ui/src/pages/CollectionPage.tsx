@@ -3,6 +3,7 @@ import { Bookmark, Boxes, Clock3, CloudOff, Copy, Gem, Heart, PackageOpen, Refre
 import type { CollectionSnapshot, CompanionCommand } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
 import { SkinCard } from "../components/SkinCard";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { lcuAssetUrl } from "../utils/assets";
 
 type CollectionFilter = "all" | "owned" | "loot" | "unowned" | "favorites" | "wishlist" | "chromas" | "duplicates" | "expiring";
@@ -128,13 +129,7 @@ export function CollectionPage({
           <span className="sr-only">Search champions and skins</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder="Search champions or skins" />
         </label>
-        <div className="segmented-control" aria-label="Filter skins">
-          {filters.map((item) => (
-            <button key={item.id} type="button" className={filter === item.id ? "active" : ""} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
-              {item.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs className="collection-filter-tabs" value={filter} options={filters.map((item) => ({ value: item.id, label: item.label }))} onChange={setFilter} label="Filter skins" />
         <label className="select-field">
           <span>Sort</span>
           <select value={sort} onChange={(event) => setSort(event.target.value as CollectionSort)}>

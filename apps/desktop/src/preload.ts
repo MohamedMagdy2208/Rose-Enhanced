@@ -10,7 +10,7 @@ import type {
   DomainEvent,
   RemotePairingOffer,
 } from "@summonerkit/contracts";
-import { ipcChannels } from "./ipc";
+import { ipcChannels } from "./ipc-channels";
 
 const bridge: CompanionBridge = {
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot) as Promise<CompanionSnapshot>,

@@ -66,7 +66,7 @@ export function SetupPage({
 
       <section className="panel setup-startup" aria-labelledby="startup-settings-title">
         <div className="panel__header">
-          <div><p className="eyebrow">Startup behavior</p><h2 id="startup-settings-title">Open alongside Windows and League</h2></div>
+          <div><p className="eyebrow">Startup behavior</p><h2 id="startup-settings-title">Open alongside Windows, League, and Rose</h2></div>
           <Power size={19} aria-hidden="true" />
         </div>
         <p className="setup-startup__lede">SummonerKit can stay quiet in the tray, reconnect to League when it appears, and optionally show the desktop window.</p>
@@ -82,7 +82,13 @@ export function SetupPage({
           description="Reveal the desktop window after the background engine detects League."
           onChange={(enabled) => void onCommand({ type: "startup.setEnabled", setting: "openOnLeagueDetected", enabled })}
         />
-        <small className="setup-startup__note">For a hands-free League launch, enable both options. The app never starts Rose or the League game for you.</small>
+        <Toggle
+          checked={snapshot.startup.openOnRoseDetected}
+          label="Open when Rose starts"
+          description="Reveal the desktop window after the background engine detects Rose."
+          onChange={(enabled) => void onCommand({ type: "startup.setEnabled", setting: "openOnRoseDetected", enabled })}
+        />
+        <small className="setup-startup__note">The engine can open itself, but it never starts Rose or the League game for you.</small>
       </section>
 
       <ol className="setup-checks">

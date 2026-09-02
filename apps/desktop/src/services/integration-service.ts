@@ -122,7 +122,7 @@ export class IntegrationService {
   private async runningProcessNames(): Promise<Set<ExternalIntegrationId>> {
     if (process.platform !== "win32") return new Set();
     try {
-      const script = "Get-Process -Name Rose,Deceive -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName | ConvertTo-Json -Compress";
+      const script = "Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -eq 'Rose' -or $_.ProcessName -eq 'Deceive' } | Select-Object -ExpandProperty ProcessName | ConvertTo-Json -Compress";
       const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true });
       const parsed = stdout.trim() ? (JSON.parse(stdout) as string | string[]) : [];
       return new Set((Array.isArray(parsed) ? parsed : [parsed]).map((name) => name.toLowerCase()).filter((name): name is ExternalIntegrationId => name === "rose" || name === "deceive"));

@@ -18,8 +18,24 @@ function preloadOutputCompatibility(): Plugin {
   };
 }
 
+function sandboxedPreloadGuard(): Plugin {
+  return {
+    name: "summonerkit:sandboxed-preload-guard",
+    enforce: "post",
+    generateBundle(_options, bundle) {
+      for (const output of Object.values(bundle)) {
+        if (output.type !== "chunk") continue;
+        const unsupportedRequire = /require\(["'](?!electron["'])[^"']+["']\)/u.exec(output.code)?.[0];
+        if (unsupportedRequire) {
+          this.error(`Sandboxed preload bundled an unsupported runtime dependency: ${unsupportedRequire}`);
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [preloadOutputCompatibility()],
+  plugins: [preloadOutputCompatibility(), sandboxedPreloadGuard()],
   build: {
     sourcemap: false,
     rollupOptions: { external: ["electron"] },

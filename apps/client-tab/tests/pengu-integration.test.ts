@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { Window } from "happy-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CLIENT_TAB_PLUGIN_VERSION, CLIENT_TAB_PROTOCOL_VERSION } from "@summonerkit/contracts";
+import {
+  CLIENT_TAB_PLUGIN_VERSION,
+  CLIENT_TAB_PROTOCOL_VERSION,
+  DESKTOP_LAUNCH_URL,
+} from "@summonerkit/contracts";
 
 const templateUrl = new URL("../pengu/index.template.js", import.meta.url);
 const openWindows: Window[] = [];
@@ -18,7 +22,8 @@ async function loadBootstrap(window: Window, bridgeAvailable = true): Promise<vo
     .replaceAll("__SUMMONERKIT_PORT__", "17654")
     .replaceAll("__SUMMONERKIT_NAV_ICON__", "data:image/png;base64,dGVzdA==")
     .replaceAll("__SUMMONERKIT_PLUGIN_VERSION__", CLIENT_TAB_PLUGIN_VERSION)
-    .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION));
+    .replaceAll("__SUMMONERKIT_PROTOCOL_VERSION__", String(CLIENT_TAB_PROTOCOL_VERSION))
+    .replaceAll("__SUMMONERKIT_DESKTOP_LAUNCH_URL__", DESKTOP_LAUNCH_URL);
   window.eval(executableSource);
   await new Promise((resolve) => setTimeout(resolve, 10));
 }
@@ -179,9 +184,19 @@ describe("Pengu client-surface integration", () => {
     expect(leagueNavigationClicks).toBe(1);
   });
 
+  it("does not request an external app launch without a user gesture", async () => {
+    const window = createWindow();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
+    await loadBootstrap(window, false);
+
+    expect(open).not.toHaveBeenCalled();
+  });
+
   // Regression: the 2026-08-23 stopped-host incident rendered Chromium's raw error page.
   it("shows a retryable in-client status when the desktop companion is stopped", async () => {
     const window = createWindow();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
     window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
     await loadBootstrap(window, false);
 
@@ -193,10 +208,11 @@ describe("Pengu client-surface integration", () => {
     const overlay = window.document.getElementById("summonerkit-client-overlay");
     const retry = overlay?.querySelector<HTMLButtonElement>(".summonerkit-retry");
     expect(overlay?.querySelector("h1")?.textContent).toBe(
-      "SummonerKit isn’t running",
+      "Windows engine is stopped",
     );
     expect(retry?.disabled).toBe(false);
-    expect(retry?.textContent).toBe("Retry connection");
+    expect(retry?.textContent).toBe("Start & reconnect");
+    expect(overlay?.textContent).toContain("desktop app");
     expect(overlay?.querySelector("iframe")).toBeNull();
     expect(overlay?.textContent).not.toContain(testBridgeToken);
 
@@ -204,7 +220,36 @@ describe("Pengu client-surface integration", () => {
       new window.Response(null, { status: 200 }),
     );
     retry?.click();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(open).toHaveBeenCalledWith(
+      DESKTOP_LAUNCH_URL,
+      "_blank",
+      "noopener,noreferrer",
+    );
+    expect(window.document.querySelector(".summonerkit-protocol-launch")).toBeNull();
+    expect(overlay?.querySelector("h1")?.textContent).toBe("Starting SummonerKit…");
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(overlay?.querySelector("iframe")?.src).toBe(
+      "http://127.0.0.1:17654/client/",
+    );
+  });
+
+  it("reconnects the open client surface when the desktop engine becomes available", async () => {
+    const window = createWindow();
+    window.document.body.innerHTML = '<nav class="right-nav-menu"></nav>';
+    await loadBootstrap(window, false);
+
+    window.document
+      .querySelector<HTMLButtonElement>("#summonerkit-navigation-item")
+      ?.click();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const overlay = window.document.getElementById("summonerkit-client-overlay");
+    expect(overlay?.querySelector("iframe")).toBeNull();
+
+    vi.mocked(window.fetch).mockResolvedValueOnce(
+      new window.Response(null, { status: 200 }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+
     expect(overlay?.querySelector("iframe")?.src).toBe(
       "http://127.0.0.1:17654/client/",
     );

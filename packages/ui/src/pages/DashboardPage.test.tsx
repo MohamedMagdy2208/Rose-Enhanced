@@ -8,6 +8,9 @@ describe("DashboardPage", () => {
     const snapshot = structuredClone(emptySnapshot);
     snapshot.automation.riskAcknowledged = true;
     snapshot.automation.autoAccept = true;
+    snapshot.startup.launchOnWindowsStartup = true;
+    snapshot.startup.openOnLeagueDetected = true;
+    snapshot.startup.openOnRoseDetected = true;
 
     const markup = renderToStaticMarkup(
       <DashboardPage snapshot={snapshot} onNavigate={vi.fn()} onCommand={vi.fn()} />,
@@ -20,6 +23,11 @@ describe("DashboardPage", () => {
     expect(markup).toContain("Stop all");
     expect(markup).toContain("Use your phone as a companion");
     expect(markup).toContain("Set up mobile");
+    expect(markup).toContain("Ready when League or Rose opens");
+    expect(markup).toContain("Fully automatic");
+    expect(markup).toContain('aria-label="Turn Start with Windows off"');
+    expect(markup).toContain('aria-label="Turn Show when League connects off"');
+    expect(markup).toContain('aria-label="Turn Show when Rose starts off"');
   });
 
   it("does not navigate to the desktop-only mobile setup from the client tab", () => {

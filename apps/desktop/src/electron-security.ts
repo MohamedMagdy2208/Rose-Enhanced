@@ -1,4 +1,5 @@
 import type { IpcMainInvokeEvent, WebContents } from "electron";
+import { RENDERER_SCHEME } from "./renderer-protocol";
 
 const allowedExternalHosts = new Set([
   "github.com",
@@ -21,7 +22,7 @@ export function trustedRendererUrl(candidate: string): boolean {
   try {
     const url = new URL(candidate);
     if (url.username || url.password) return false;
-    if (url.protocol === "summonerkit:") return url.hostname === "app" && !url.port;
+    if (url.protocol === `${RENDERER_SCHEME}:`) return url.hostname === "app" && !url.port;
     return (url.protocol === "http:" || url.protocol === "https:")
       && (url.hostname === "127.0.0.1" || url.hostname === "localhost");
   } catch {

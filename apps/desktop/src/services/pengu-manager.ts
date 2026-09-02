@@ -4,6 +4,8 @@ import { app } from "electron";
 import {
   CLIENT_TAB_PLUGIN_VERSION,
   CLIENT_TAB_PROTOCOL_VERSION,
+  DESKTOP_LAUNCH_URL,
+  PRODUCT_ICON_DATA_URL,
 } from "@summonerkit/contracts";
 import type { CompanionStore } from "./companion-store";
 import type { SettingsStore } from "./settings-store";
@@ -64,16 +66,15 @@ export class PenguManager {
     const destination = path.join(pluginRoot, this.pluginName);
     await mkdir(destination, { recursive: true });
     const template = await readFile(templatePath, "utf8");
-    const navigationIcon = await readFile(this.navigationIconPath());
     const bridgePort = bridgePortFromEnvironment();
     const bridgeToken = this.settings.get().bridgeToken;
-    const navigationDataUrl = `data:image/png;base64,${navigationIcon.toString("base64")}`;
     const generated = template
       .replaceAll('"__SUMMONERKIT_TOKEN__"', JSON.stringify(bridgeToken))
       .replaceAll('"__SUMMONERKIT_PORT__"', JSON.stringify(String(bridgePort)))
-      .replaceAll('"__SUMMONERKIT_NAV_ICON__"', JSON.stringify(navigationDataUrl))
+      .replaceAll('"__SUMMONERKIT_NAV_ICON__"', JSON.stringify(PRODUCT_ICON_DATA_URL))
       .replaceAll('"__SUMMONERKIT_PLUGIN_VERSION__"', JSON.stringify(CLIENT_TAB_PLUGIN_VERSION))
-      .replaceAll('"__SUMMONERKIT_PROTOCOL_VERSION__"', JSON.stringify(String(CLIENT_TAB_PROTOCOL_VERSION)));
+      .replaceAll('"__SUMMONERKIT_PROTOCOL_VERSION__"', JSON.stringify(String(CLIENT_TAB_PROTOCOL_VERSION)))
+      .replaceAll('"__SUMMONERKIT_DESKTOP_LAUNCH_URL__"', JSON.stringify(DESKTOP_LAUNCH_URL));
     await writeFile(path.join(destination, "index.js"), generated, { encoding: "utf8", mode: 0o600 });
     await this.removePluginDirectory(pluginRoot, this.legacyPluginName);
     this.store.update((snapshot) => {
@@ -147,13 +148,8 @@ export class PenguManager {
   }
 
   private templatePath(): string {
-    if (app.isPackaged) return path.join(process.resourcesPath, "pengu", "index.template.js");
+    if (app.isPackaged) return path.join(app.getAppPath(), "client-plugin", "index.template.js");
     return path.resolve(app.getAppPath(), "../client-tab/pengu/index.template.js");
-  }
-
-  private navigationIconPath(): string {
-    if (app.isPackaged) return path.join(process.resourcesPath, "assets", "tray-icon.png");
-    return path.resolve(app.getAppPath(), "assets", "tray-icon.png");
   }
 
   private async removePluginDirectory(pluginRoot: string, pluginName: string): Promise<void> {

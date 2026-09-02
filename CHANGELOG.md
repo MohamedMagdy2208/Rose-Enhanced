@@ -12,6 +12,17 @@ Versioning while the project is in prerelease.
   primary choices, backups, teammate-intent protection, manual overrides,
   missing timers, and exhausted priorities without connecting to League or
   issuing an LCU write.
+- First-class online-guidance health with provider, schema, publication age,
+  anonymous observation counts, champion coverage, current-patch coverage, and
+  truthful cache or endpoint errors in Coach & Builds and Diagnostics.
+- Publisher-side validation that blocks empty, stale, oversized, duplicated,
+  malformed, or identity-bearing guidance output before it reaches users.
+- Relay protocol `/health` endpoint and desktop verification of the relay,
+  allowed mobile origin, and PWA shell before mobile configuration is saved.
+- Mobile evidence-freshness status and a complete production deployment and
+  real-phone verification checklist.
+- Post-deployment smoke tests for the GitHub Pages feed, Cloudflare relay, PWA,
+  and Windows release workflow.
 
 ### Changed
 
@@ -30,9 +41,13 @@ Versioning while the project is in prerelease.
   client-tab authorization, pairing request timeouts without redirects, and
   additional relay response security headers. CI checkouts no longer persist
   the workflow token in the repository configuration.
-- Added opt-in Windows startup registration with a hidden tray launch, automatic
-  League reconnect detection, optional desktop-window reveal, and matching
-  controls in Setup and the tray menu.
+- Added Windows startup registration with a hidden tray launch, automatic
+  League reconnect detection, optional League and Rose desktop-window reveals,
+  and synchronized controls in Setup, Overview, and the tray menu. New installs
+  enable the three startup preferences; existing saved choices are retained.
+- Added a registered Windows app link so **Start & reconnect** in the League
+  client can open the desktop engine after an explicit click and retry the
+  authenticated local bridge with bounded backoff.
 - Added a Mobile Control shortcut on Overview plus a live QR expiry countdown;
   claimed or expired pairing secrets are cleared from the desktop UI and active
   pairing state, with a private-link fallback when a phone camera cannot scan
@@ -54,33 +69,21 @@ Versioning while the project is in prerelease.
 - Converted the Electron Forge Vite entry configurations to explicit ESM
   modules and preserved the single-file preload build with Vite's current
   `codeSplitting: false` option, removing deprecated build warnings.
-
-## [0.11.0-beta.1] - 2026-08-25
-
-### Added
-
-- First-class online-guidance health with provider, schema, publication age,
-  anonymous observation counts, champion coverage, current-patch coverage, and
-  truthful cache or endpoint errors in Coach & Builds and Diagnostics.
-- Publisher-side validation that blocks empty, stale, oversized, duplicated,
-  malformed, or identity-bearing guidance output before it reaches users.
-- Relay protocol `/health` endpoint and desktop verification of the relay,
-  allowed mobile origin, and PWA shell before mobile configuration is saved.
-- Mobile evidence-freshness status and a complete production deployment and
-  real-phone verification checklist.
-- Post-deployment smoke tests for the GitHub Pages feed, Cloudflare relay, PWA,
-  and Windows release workflow.
-
-### Changed
-
 - Public PWA deployment now requires a configured Riot publisher key instead of
   silently shipping without online runes and builds.
 - The aggregate schema-v2 feed now includes anonymous publication metadata for
   cohort size, platform coverage, lookback window, patches, and observations.
-- Client-tab plugin version advanced to 0.11.0 so existing installations can
-  detect and repair the updated Coach & Builds surface.
+- Client-tab plugin version advanced to 0.11.6 so existing installations can
+  detect and repair the updated Coach & Builds surface, shared icon, and desktop
+  recovery link.
+- Staged the client surface and Pengu template inside the integrity-protected
+  application archive, enabled explicit Electron fuse validation, tightened
+  renderer and loopback content policies, and rejected unknown command fields.
+- Grouped navigation by user intent, remembered the last valid page per surface,
+  improved short-window and responsive layouts, and added accessible segmented
+  filter controls.
 
-[0.11.0-beta.1]: https://github.com/MohamedMagdy2208/SummonerKit/releases/tag/v0.11.0-beta.1
+[Unreleased]: https://github.com/MohamedMagdy2208/SummonerKit/compare/v0.9.0-beta.1...HEAD
 
 ## [0.10.0-beta.1] - 2026-08-24
 

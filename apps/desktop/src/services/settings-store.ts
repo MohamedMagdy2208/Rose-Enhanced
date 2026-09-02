@@ -28,6 +28,7 @@ const automationSettingsSchema = z.object({
 const startupSettingsSchema = z.object({
   launchOnWindowsStartup: z.boolean(),
   openOnLeagueDetected: z.boolean(),
+  openOnRoseDetected: z.boolean(),
 });
 
 const remoteDeviceSchema = z.object({
@@ -75,7 +76,7 @@ function settingsFromDisk(raw: SettingsOnDisk, fallback: PersistedSettings, brid
   const storedStartup = raw.startup && typeof raw.startup === "object" ? raw.startup : {};
   const startup = startupSettingsSchema.safeParse({ ...fallback.startup, ...storedStartup });
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     leaguePath: storedPath(raw.leaguePath),
     bridgeToken,
     automation: automation.success ? automation.data : fallback.automation,

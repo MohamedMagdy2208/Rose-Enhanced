@@ -570,6 +570,7 @@ export interface RemoteState {
 export interface StartupSettings {
   launchOnWindowsStartup: boolean;
   openOnLeagueDetected: boolean;
+  openOnRoseDetected: boolean;
 }
 
 export interface RemotePairingOffer {

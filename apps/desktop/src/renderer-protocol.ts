@@ -1,6 +1,7 @@
 import path from "node:path";
+import { DESKTOP_LAUNCH_PROTOCOL_SCHEME } from "@summonerkit/contracts";
 
-export const RENDERER_SCHEME = "summonerkit";
+export const RENDERER_SCHEME = DESKTOP_LAUNCH_PROTOCOL_SCHEME;
 
 export function rendererFilePath(rendererRoot: string, requestUrl: string): string | null {
   try {

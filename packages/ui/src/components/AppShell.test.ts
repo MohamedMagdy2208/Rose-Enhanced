@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navigationForSurface } from "./AppShell";
+import { navigationForSurface, navigationGroupsForSurface } from "./AppShell";
 
 describe("hybrid surface navigation", () => {
   it("keeps match-adjacent pages inside the SummonerKit client tab", () => {
@@ -15,18 +15,30 @@ describe("hybrid surface navigation", () => {
 
   it("keeps administration in the desktop app", () => {
     expect(navigationForSurface("desktop")).toEqual([
-      "setup",
       "dashboard",
       "collection",
       "insights",
       "automation",
       "aram",
-      "integrations",
       "mobile",
+      "integrations",
       "doctor",
       "testlab",
+      "setup",
       "guide",
       "settings",
+    ]);
+  });
+
+  it("groups destinations by user intent without showing an empty system group in the client", () => {
+    expect(navigationGroupsForSurface("desktop")).toEqual([
+      { id: "league", label: "League", pages: ["dashboard", "collection", "insights", "automation", "aram"] },
+      { id: "connect", label: "Connect", pages: ["mobile", "integrations"] },
+      { id: "system", label: "System", pages: ["doctor", "testlab", "setup", "guide", "settings"] },
+    ]);
+    expect(navigationGroupsForSurface("client")).toEqual([
+      { id: "league", label: "League", pages: ["dashboard", "collection", "insights", "automation", "aram"] },
+      { id: "connect", label: "Connect", pages: ["mobile"] },
     ]);
   });
 });

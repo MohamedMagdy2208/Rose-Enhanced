@@ -14,6 +14,7 @@ import {
 import type { CompanionSnapshot, CompanionCommand } from "@summonerkit/contracts";
 import { EmptyState } from "../components/EmptyState";
 import { PresenceControl } from "../components/PresenceControl";
+import { StartupControl } from "../components/StartupControl";
 import { StatusPill } from "../components/StatusPill";
 import { formatLeaguePatch, formatRelativeTime } from "../utils/assets";
 
@@ -49,7 +50,6 @@ export function DashboardPage({
       : snapshot.remote.relayConfigured
         ? { title: "Ready to pair", detail: "Create a short-lived QR code from Mobile Control", tone: "accent" as const }
         : { title: "Mobile is not configured", detail: "Configure the encrypted relay once to connect a phone", tone: "neutral" as const };
-
   return (
     <div className="page dashboard-page">
       <header className="page-header page-header--split">
@@ -193,6 +193,8 @@ export function DashboardPage({
             </ul>
           )}
         </section>
+
+        <StartupControl startup={snapshot.startup} onCommand={onCommand} />
 
         <section className="panel panel--wide">
           <div className="panel__header">

@@ -62,6 +62,7 @@ export const emptySnapshot: CompanionSnapshot = {
   startup: {
     launchOnWindowsStartup: false,
     openOnLeagueDetected: false,
+    openOnRoseDetected: false,
   },
   pendingAutomation: [],
   profiles: [],

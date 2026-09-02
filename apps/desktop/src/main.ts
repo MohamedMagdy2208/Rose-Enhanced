@@ -18,6 +18,7 @@ import {
   PRODUCT_NAME,
   PRODUCT_ICON_DATA_URL,
   PRODUCT_REPOSITORY,
+  DESKTOP_LAUNCH_PROTOCOL_SCHEME,
   type AutomationSettings,
   type CompanionCommand,
   type CompanionSnapshot,
@@ -43,7 +44,14 @@ import { PresenceService } from "./services/presence-service";
 import { RemoteService } from "./services/remote-service";
 import { applyReadyCheckWindowPolicy } from "./services/ready-check-window-policy";
 import { SettingsStore } from "./services/settings-store";
-import { createStartupRegistration, type StartupRegistration } from "./services/startup-registration";
+import {
+  createDesktopProtocolRegistration,
+  createStartupRegistration,
+  shouldOpenForProcessStart,
+  shouldStartInBackground,
+  startupLaunchStateMatches,
+  type StartupRegistration,
+} from "./services/startup-registration";
 import { UpdateService } from "./services/update-service";
 
 if (squirrelStartup) app.quit();
@@ -58,7 +66,7 @@ if (!singleInstance) app.quit();
 
 const installClientSurface = process.argv.includes("--install-client-surface");
 const rotateClientToken = process.argv.includes("--rotate-client-token");
-const startInBackground = process.argv.includes("--background");
+const startInBackground = shouldStartInBackground(process.argv);
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -97,15 +105,43 @@ async function bootstrap(): Promise<void> {
 
   await pengu.repairIfInstalled();
 
-  const startupRegistration = await resolveStartupRegistration();
+  const launchRegistrations = await resolveLaunchRegistrations();
+  const startupRegistration = launchRegistrations.startup;
+  if (process.platform === "win32") {
+    const registered = app.setAsDefaultProtocolClient(
+      DESKTOP_LAUNCH_PROTOCOL_SCHEME,
+      launchRegistrations.protocol.path,
+      launchRegistrations.protocol.args,
+    );
+    if (registered) {
+      logger.info("Registered the Windows desktop recovery link");
+    } else {
+      logger.warn("Windows refused the desktop recovery link registration");
+    }
+  }
   const setStartupEnabled = (enabled: boolean): void => {
     if (process.platform !== "win32") return;
-    app.setLoginItemSettings({
+    const loginItemOptions = {
       openAtLogin: enabled,
       enabled: true,
       name: PRODUCT_NAME,
       path: startupRegistration.path,
       args: startupRegistration.args,
+    };
+    app.setLoginItemSettings(loginItemOptions);
+    const registrationState = app.getLoginItemSettings({
+      path: startupRegistration.path,
+      args: startupRegistration.args,
+    });
+    if (!startupLaunchStateMatches(enabled, registrationState)) {
+      throw new Error(enabled
+        ? "Windows registered SummonerKit but reports that it will not launch at sign-in. Check Startup apps in Windows Settings."
+        : "Windows still reports that SummonerKit will launch at sign-in.");
+    }
+    logger.info("Windows startup preference applied", {
+      enabled,
+      openAtLogin: registrationState.openAtLogin,
+      executableWillLaunchAtLogin: registrationState.executableWillLaunchAtLogin,
     });
   };
   try {
@@ -132,6 +168,21 @@ async function bootstrap(): Promise<void> {
     mainWindow.show();
     mainWindow.focus();
   };
+  let roseWasRunning = false;
+  const openDesktopWhenRoseStarts = (): void => {
+    const roseIsRunning = store.getSnapshot().integrations
+      .find((integration) => integration.id === "rose")?.running ?? false;
+    const shouldOpen = shouldOpenForProcessStart(
+      settings.get().startup.openOnRoseDetected,
+      roseWasRunning,
+      roseIsRunning,
+    );
+    roseWasRunning = roseIsRunning;
+    if (!shouldOpen || !mainWindow || mainWindow.isVisible()) return;
+    logger.info("Rose start detected; opening the desktop dashboard");
+    openDesktop();
+  };
+  store.on("changed", openDesktopWhenRoseStarts);
   router = new CommandRouter({
     store,
     settings,
@@ -191,6 +242,13 @@ async function bootstrap(): Promise<void> {
   aram.start();
   await bridge.start();
   await Promise.all([integrations.refresh(), pengu.refresh()]);
+  const integrationRefreshTimer = setInterval(() => {
+    void integrations.refresh().catch((error) => {
+      logger.warn("Could not refresh external integration status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, 4_000);
   lcu.start();
   const disposeTray = createTray(mainWindow, store, router, notifyUser);
 
@@ -198,6 +256,8 @@ async function bootstrap(): Promise<void> {
     isQuitting = true;
     disposeTray();
     store.off("changed", handleReadyCheckWindowPolicy);
+    store.off("changed", openDesktopWhenRoseStarts);
+    clearInterval(integrationRefreshTimer);
     clientTabActivation.stop();
     automation.stop();
     leagueSession.stop();
@@ -257,6 +317,15 @@ function createWindow(logger: AppLogger): BrowserWindow {
   window.webContents.on("will-navigate", blockUnexpectedNavigation);
   window.webContents.on("will-redirect", blockUnexpectedNavigation);
   window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+  window.webContents.on("preload-error", (_event, _preloadPath, error) => {
+    logger.error("Desktop preload failed", { error: error.message });
+  });
+  window.webContents.on("render-process-gone", (_event, details) => {
+    logger.error("Desktop renderer process stopped unexpectedly", {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
   window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
@@ -303,7 +372,10 @@ function applicationAssetPath(filename: "icon.ico" | "tray-icon.png"): string {
   return path.join(assetDirectory, filename);
 }
 
-async function resolveStartupRegistration(): Promise<StartupRegistration> {
+async function resolveLaunchRegistrations(): Promise<{
+  startup: StartupRegistration;
+  protocol: StartupRegistration;
+}> {
   const executablePath = process.execPath;
   const appFolder = path.dirname(executablePath);
   const executableName = path.basename(executablePath);
@@ -316,12 +388,16 @@ async function resolveStartupRegistration(): Promise<StartupRegistration> {
     && await fileExists(squirrelStubPath)
     ? squirrelStubPath
     : null;
-  return createStartupRegistration({
+  const context = {
     isPackaged: app.isPackaged,
     executablePath,
     appPath: app.getAppPath(),
     squirrelStubPath: usableSquirrelStub,
-  });
+  };
+  return {
+    startup: createStartupRegistration(context),
+    protocol: createDesktopProtocolRegistration(context),
+  };
 }
 
 const trayAutomationFeatures: ReadonlyArray<{
@@ -387,6 +463,7 @@ function trayMenuSignature(snapshot: CompanionSnapshot): string {
     presenceError: snapshot.presence.lastError,
     launchOnWindowsStartup: snapshot.startup.launchOnWindowsStartup,
     openOnLeagueDetected: snapshot.startup.openOnLeagueDetected,
+    openOnRoseDetected: snapshot.startup.openOnRoseDetected,
     riskAcknowledged: snapshot.automation.riskAcknowledged,
     executionMode: snapshot.automation.executionMode,
     features: trayAutomationFeatures.map((feature) => snapshot.automation[feature.key]),
@@ -508,6 +585,18 @@ function trayMenuTemplate(
       },
     },
     {
+      label: "Open when Rose starts",
+      type: "checkbox",
+      checked: snapshot.startup.openOnRoseDetected,
+      click: () => {
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "openOnRoseDetected",
+          enabled: !snapshot.startup.openOnRoseDetected,
+        });
+      },
+    },
+    {
       label: snapshot.startup.launchOnWindowsStartup
         ? "The engine runs quietly in the tray at sign-in."
         : "Enable Start with Windows for hands-free League detection.",
@@ -561,7 +650,8 @@ async function fileExists(candidate: string): Promise<boolean> {
 }
 
 app.on("second-instance", (_event, commandLine) => {
-  if (commandLine.some((argument) => argument === "--background")) return;
+  if (shouldStartInBackground(commandLine)) return;
+  if (mainWindow?.isMinimized()) mainWindow.restore();
   mainWindow?.show();
   mainWindow?.focus();
 });

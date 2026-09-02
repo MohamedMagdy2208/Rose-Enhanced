@@ -4,7 +4,7 @@ import { emptySnapshot } from "../bridge/empty-snapshot";
 import { SetupPage } from "./SetupPage";
 
 describe("SetupPage startup preferences", () => {
-  it("exposes Windows and League startup controls", () => {
+  it("exposes Windows, League, and Rose startup controls", () => {
     const snapshot = structuredClone(emptySnapshot);
     snapshot.startup.launchOnWindowsStartup = true;
 
@@ -14,6 +14,7 @@ describe("SetupPage startup preferences", () => {
 
     expect(markup).toContain("Start with Windows");
     expect(markup).toContain("Open when League connects");
+    expect(markup).toContain("Open when Rose starts");
     expect(markup).toContain('type="checkbox" checked=""');
   });
 });

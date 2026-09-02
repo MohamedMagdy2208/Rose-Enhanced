@@ -8,6 +8,7 @@ import type {
 } from "@summonerkit/contracts";
 import { EmptyState } from "./EmptyState";
 import { StatusPill } from "./StatusPill";
+import { SegmentedTabs } from "./SegmentedTabs";
 import { formatRelativeTime, lcuAssetUrl } from "../utils/assets";
 
 const initialVisibleMatches = 12;
@@ -70,6 +71,7 @@ export function MatchHistoryPanel({
   const history = useMemo(() => filterPerformanceMatches(performance.matches, filters), [filters, performance.matches]);
 
   useEffect(() => { setVisibleMatches(initialVisibleMatches); }, [filters]);
+  useEffect(() => { if (!selectedChampionId && scope === "champion") setScope("overall"); }, [scope, selectedChampionId]);
 
   return (
     <section className="panel match-history" aria-labelledby="match-history-title">
@@ -81,10 +83,16 @@ export function MatchHistoryPanel({
         <StatusPill tone={performance.stale ? "warning" : performance.status === "ready" ? "positive" : "neutral"}>{history.length} shown</StatusPill>
       </div>
 
-      <div className="segmented-control match-history__scope" aria-label="Match history scope">
-        <button type="button" className={scope === "overall" ? "active" : ""} aria-pressed={scope === "overall"} onClick={() => setScope("overall")}>Overall</button>
-        <button type="button" className={scope === "champion" ? "active" : ""} aria-pressed={scope === "champion"} disabled={!selectedChampionId} onClick={() => setScope("champion")}>{selectedChampion ? selectedChampion.name : "Selected champion"}</button>
-      </div>
+      <SegmentedTabs
+        className="match-history__scope"
+        value={scope}
+        options={[
+          { value: "overall", label: "Overall" },
+          { value: "champion", label: selectedChampion ? selectedChampion.name : "Selected champion", disabled: !selectedChampionId },
+        ]}
+        onChange={setScope}
+        label="Match history scope"
+      />
 
       <div className="match-history__filters" aria-label="Match history filters">
         <FilterSelect label="Queue" value={queueId ?? "all"} onChange={(value) => setQueueId(value === "all" ? null : Number(value))}>

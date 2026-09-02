@@ -249,7 +249,7 @@ export class BridgeServer {
   }
 
   private clientDistPath(): string {
-    if (app.isPackaged) return path.join(process.resourcesPath, "dist");
+    if (app.isPackaged) return path.join(app.getAppPath(), "client-dist");
     return path.resolve(app.getAppPath(), "../client-tab/dist");
   }
 
@@ -307,9 +307,10 @@ export class BridgeServer {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=()");
+    response.setHeader("X-DNS-Prefetch-Control", "off");
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    response.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://127.0.0.1:${this.port}; connect-src 'self' ws://127.0.0.1:${this.port}; font-src 'self'; frame-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`);
+    response.setHeader("Content-Security-Policy", `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://127.0.0.1:${this.port}; connect-src 'self' ws://127.0.0.1:${this.port}; font-src 'self'; frame-src 'none'; worker-src 'none'; child-src 'none'; manifest-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`);
   }
 
   private send(response: ServerResponse, status: number, body: string): void {

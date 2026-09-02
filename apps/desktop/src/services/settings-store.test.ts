@@ -72,12 +72,33 @@ describe("settings secret storage", () => {
     await store.update((settings) => {
       settings.startup.launchOnWindowsStartup = true;
       settings.startup.openOnLeagueDetected = true;
+      settings.startup.openOnRoseDetected = true;
     });
 
     const reloaded = new SettingsStore(logger);
     expect((await reloaded.load()).startup).toEqual({
       launchOnWindowsStartup: true,
       openOnLeagueDetected: true,
+      openOnRoseDetected: true,
+    });
+  });
+
+  it("migrates legacy startup choices while enabling Rose detection", async () => {
+    await writeFile(path.join(electronState.userData, "settings.json"), JSON.stringify({
+      schemaVersion: 3,
+      startup: {
+        launchOnWindowsStartup: false,
+        openOnLeagueDetected: false,
+      },
+    }), "utf8");
+
+    const settings = await new SettingsStore(logger).load();
+
+    expect(settings.schemaVersion).toBe(4);
+    expect(settings.startup).toEqual({
+      launchOnWindowsStartup: false,
+      openOnLeagueDetected: false,
+      openOnRoseDetected: true,
     });
   });
 
@@ -105,11 +126,13 @@ describe("settings secret storage", () => {
     await Promise.all([
       store.update((settings) => { settings.startup.launchOnWindowsStartup = true; }),
       store.update((settings) => { settings.startup.openOnLeagueDetected = true; }),
+      store.update((settings) => { settings.startup.openOnRoseDetected = true; }),
     ]);
 
     expect(store.get().startup).toEqual({
       launchOnWindowsStartup: true,
       openOnLeagueDetected: true,
+      openOnRoseDetected: true,
     });
   });
 });

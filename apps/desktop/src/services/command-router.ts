@@ -284,5 +284,6 @@ export class CommandRouter {
 
 function startupSettingMessage(setting: keyof StartupSettings, enabled: boolean): string {
   if (setting === "launchOnWindowsStartup") return `Start with Windows ${enabled ? "enabled" : "disabled"}.`;
-  return `Open on League detection ${enabled ? "enabled" : "disabled"}.`;
+  if (setting === "openOnLeagueDetected") return `Open on League detection ${enabled ? "enabled" : "disabled"}.`;
+  return `Open on Rose detection ${enabled ? "enabled" : "disabled"}.`;
 }

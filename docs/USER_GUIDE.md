@@ -54,17 +54,19 @@ active game.
 
 ### Automatic startup
 
-Open **Setup** and enable **Start with Windows** to launch the local engine
-hidden in the tray whenever you sign in. Its existing lockfile monitor then
-connects automatically when League starts. Enable **Open when League connects**
-if you want the desktop window to appear after that connection; leave it off
-for a tray-only workflow. The same checkboxes are available from the
-SummonerKit tray icon under **Startup**.
+New installations enable **Start with Windows**, **Open when League connects**,
+and **Open when Rose starts**. The engine launches hidden in the tray whenever
+you sign in. Its lockfile monitor connects when League starts, while the Rose
+monitor can reveal the desktop when it detects that separate application.
+Existing installations retain their saved Windows and League choices. The same
+switches are available from **Setup**, **Overview**, and the SummonerKit tray
+icon under **Startup**.
 
-These preferences only start SummonerKit. They never launch Rose, the League
-client, or the game process. If you enable only **Open when League connects**,
-the option works while SummonerKit is already running; enable both options for
-a hands-free Windows sign-in flow.
+These preferences only start or reveal SummonerKit. They never launch Rose,
+the League client, or the game process. Turn off either reveal switch for a
+tray-only workflow. League and Rose detection work while the SummonerKit engine
+is already running, so keep **Start with Windows** enabled for a hands-free
+sign-in flow.
 
 ## Install or repair the League client tab
 
@@ -75,6 +77,12 @@ runtime when Rose is installed; it does not start a second loader.
 2. Find **League client tab**.
 3. Choose **Repair client tab**.
 4. Allow the safe League UI reload when prompted, or restart League later.
+
+If the client tab reports that the Windows engine is stopped, choose **Start &
+reconnect**. Windows opens the registered SummonerKit app link and the tab
+retries the local bridge for up to 15 seconds. Open the installed desktop app
+once before relying on this button so Windows can register the link. If Windows
+blocks it, open SummonerKit from the Start menu and retry.
 
 The same surface appears as a SummonerKit icon in League's top navigation and,
 when Rose is present, as an entry inside Rose's settings. Clicking another
