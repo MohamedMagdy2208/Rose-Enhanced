@@ -13,7 +13,9 @@ League state, mobile commands, command results, or LCU credentials. The mobile
 snapshot intentionally excludes Riot IDs, PUUIDs, account cache keys, chat,
 social data, local paths, diagnostics, and the full collection.
 
-Champion performance stores aggregate per-champion results only. Raw match
-payloads and player identifiers are discarded after in-memory aggregation.
-Rune recommendation requests contain no player identity or match history. An
-optional private-feed bearer token remains in the Electron main process.
+Champion performance stores aggregate per-champion results and identity-free
+recent-match rows containing champion, queue, role, result, timestamp, and
+performance metrics. Raw match payloads and player identifiers are discarded
+after in-memory reduction. Rune recommendation requests contain no player
+identity or match history. Optional private-feed and mobile-relay secrets remain
+in the Electron main process and are protected by Windows credential encryption.

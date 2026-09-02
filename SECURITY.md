@@ -14,25 +14,40 @@
 
 - The renderer is sandboxed with context isolation, Node integration disabled,
   WebSQL and webviews disabled, an in-memory session partition, a restrictive
-  Content Security Policy, denied permissions, and blocked navigation/popups.
+  Content Security Policy, denied permissions, and blocked navigation,
+  redirects, webviews, and popups.
 - External links are limited to the GitHub and Riot hosts used by the UI.
 - The updater uses a fixed `update.electronjs.org/MohamedMagdy2208/SummonerKit`
   feed. Renderer code cannot replace the feed URL.
 - Privileged IPC accepts messages only from the current top-level renderer
   frame. Runtime schemas validate commands again in the main process.
+- Renderer IPC is accepted only from the packaged `summonerkit://app` origin or
+  a loopback Vite origin; `data:`, `file:`, and remote pages cannot invoke it.
 - Packaged builds disable `ELECTRON_RUN_AS_NODE`, Node options, and CLI inspect;
   enable cookie encryption and embedded ASAR integrity validation; load app code
   only from ASAR; and exclude production source maps.
+- GitHub Actions checkouts do not persist the workflow token in the repository
+  configuration, reducing credential exposure to build and dependency scripts.
 
 ## Local League bridge
 
 - The HTTP/WebSocket bridge binds only to `127.0.0.1` and requires the exact
   loopback Host and Origin values for WebSocket upgrades.
+- The bridge port is a validated non-privileged TCP port, HTTP origins are
+  checked when supplied, command envelopes require a UUID and the shared
+  runtime schema, responses are bounded to 8 MiB, LCU request bodies are
+  bounded to 2 MiB, and request/socket timeouts plus compression are disabled
+  to limit local resource exhaustion.
 - The installed client plugin sends its installation secret only in an
   Authorization header. WebSocket upgrades use a 30-second, one-use session in
-  the subprotocol header, so credentials do not appear in request URLs.
+  the subprotocol header, so credentials do not appear in request URLs. The
+  client-tab authorization envelope is also bounded to the expected token,
+  protocol, and plugin-version formats.
 - The League surface has a server-side command allowlist and per-connection rate
   limit. Hiding desktop-only controls in React is not the authorization layer.
+- League-tab snapshots are cloned and stripped of the account cache key,
+  guidance endpoint, local executable paths, relay and PWA URLs, and real
+  paired-device identifiers before serialization.
 - The only unauthenticated LCU proxy surface is read-only local game artwork.
   Paths must remain under `/lol-game-data/assets/`, traversal is rejected, and
   LCU responses are bounded to 64 MiB.
@@ -47,10 +62,22 @@
   relay-substituted desktop key.
 - Directional keys are derived with ECDH P-256 and HKDF-SHA-256. Messages use
   AES-256-GCM with authenticated direction and sequence fields; duplicates,
-  replays, and out-of-order envelopes are rejected.
+  replays, out-of-order, malformed, and oversized envelopes are rejected.
+- Relay-provided WebSocket endpoints are pinned to the configured relay host,
+  room path, and expected `wss:`/local-development `ws:` scheme before an
+  access token is ever sent.
+- Pairing HTTP requests disable caching and browser credentials, reject
+  redirects, and time out; the relay canonicalizes received P-256 public keys
+  and validates token hashes and room expiry metadata before storing them.
 - Relay access tokens use WebSocket subprotocol headers rather than URLs. The
   relay enforces the configured PWA origin, request/message size limits, message
   rate limits, one desktop and one phone per room, and automatic room expiry.
+- The relay administrator secret is accepted only by trusted desktop IPC and is
+  persisted with Electron `safeStorage`; it is never included in normalized
+  snapshots, diagnostics, League-tab traffic, QR URLs, or mobile messages.
+- A reconnect resets both authenticated channel sequence spaces only after the
+  relay replays the mobile public-key proof to the desktop. Mobile commands stay
+  disabled until a new encrypted desktop snapshot completes that handshake.
 - The desktop sends a purpose-built mobile snapshot below the relay size limit.
   It contains normalized lobby and draft state plus a minimal champion catalog;
   account keys, Riot IDs, PUUIDs, summoner IDs, logs, paths, integrations, and
@@ -58,6 +85,9 @@
 - Mobile commands carry unique request identifiers and complete only after the
   desktop has revalidated the current lobby or champion-select state and
   returned an encrypted result.
+- The phone can invoke the global automation kill switch, but the mobile
+  allowlist cannot enable an automation feature, acknowledge risk, or change
+  execution mode.
 
 ## Online rune data and local performance
 
@@ -67,8 +97,11 @@
   bearer token remains exclusively in the Electron main process.
 - Applying recommended runes can update or create only a named SummonerKit
   page. The application never deletes a user rune page to make room.
-- Local match history is reduced to aggregate champion metrics in memory. Raw
-  matches and player identifiers are not stored in the analytics cache.
+- Local match history is reduced to aggregate champion metrics and
+  identity-free recent-match rows in memory. Raw matches and player identifiers
+  are not stored in the analytics cache.
+- The rune publisher holds the Riot API key only in its server-side process and
+  writes anonymous aggregate recommendations without match IDs or player IDs.
 
 The relay can still observe connection timing, room identifiers, public keys,
 device names, message sizes, and IP metadata. It cannot provide anonymity.
@@ -77,9 +110,14 @@ device names, message sizes, and IP metadata. It cannot provide anonymity.
 
 - Packaged builds refuse to persist the client-bridge secret when Electron
   `safeStorage` is unavailable; plaintext fallback is limited to development.
-- Settings and collection cache writes use temporary files followed by atomic
-  replacement. Logs redact credential-like keys and strings, retain 300 lines
-  in memory, and rotate the disk log at 2 MiB with one backup.
+- League lockfiles are size-limited and their process name, PID, port,
+  protocol, and password fields are range- and character-validated before any
+  authenticated socket or HTTPS request is opened.
+- Settings updates are serialized, and settings and collection cache writes use
+  temporary files followed by atomic replacement. An invalid settings document
+  is preserved as `settings.invalid-<timestamp>-<suffix>.json` before safe
+  defaults replace it. Logs redact credential-like keys and strings, retain 300
+  lines in memory, and rotate the disk log at 2 MiB with one backup.
 - There is no telemetry. Diagnostic export uses the same redaction layer.
 
 ## Known limitations

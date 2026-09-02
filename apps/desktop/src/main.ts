@@ -1,19 +1,32 @@
 import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   app,
   autoUpdater,
   BrowserWindow,
   dialog,
   Menu,
+  net,
   Notification,
+  protocol,
   shell,
   Tray,
+  type MenuItemConstructorOptions,
 } from "electron";
-import { PRODUCT_NAME, PRODUCT_REPOSITORY } from "@summonerkit/contracts";
+import {
+  PRODUCT_NAME,
+  PRODUCT_ICON_DATA_URL,
+  PRODUCT_REPOSITORY,
+  DESKTOP_LAUNCH_PROTOCOL_SCHEME,
+  type AutomationSettings,
+  type CompanionCommand,
+  type CompanionSnapshot,
+} from "@summonerkit/contracts";
 import squirrelStartup from "electron-squirrel-startup";
 import { registerIpc } from "./ipc";
-import { allowedExternalUrl } from "./electron-security";
+import { allowedExternalUrl, trustedRendererUrl } from "./electron-security";
+import { rendererFilePath, RENDERER_SCHEME } from "./renderer-protocol";
 import { AutomationService } from "./services/automation-service";
 import { AramService } from "./services/aram-service";
 import { BridgeServer } from "./services/bridge-server";
@@ -27,19 +40,33 @@ import { LcuClient } from "./services/lcu/lcu-client";
 import { LeagueSessionService } from "./services/league-session-service";
 import { AppLogger } from "./services/logger";
 import { PenguManager } from "./services/pengu-manager";
+import { PresenceService } from "./services/presence-service";
 import { RemoteService } from "./services/remote-service";
+import { applyReadyCheckWindowPolicy } from "./services/ready-check-window-policy";
 import { SettingsStore } from "./services/settings-store";
+import {
+  createDesktopProtocolRegistration,
+  createStartupRegistration,
+  shouldOpenForProcessStart,
+  shouldStartInBackground,
+  startupLaunchStateMatches,
+  type StartupRegistration,
+} from "./services/startup-registration";
 import { UpdateService } from "./services/update-service";
 
 if (squirrelStartup) app.quit();
 app.setName(PRODUCT_NAME);
+protocol.registerSchemesAsPrivileged([{
+  scheme: RENDERER_SCHEME,
+  privileges: { standard: true, secure: true, codeCache: true },
+}]);
 
 const singleInstance = app.requestSingleInstanceLock();
 if (!singleInstance) app.quit();
 
 const installClientSurface = process.argv.includes("--install-client-surface");
 const rotateClientToken = process.argv.includes("--rotate-client-token");
-const startInBackground = process.argv.includes("--background");
+const startInBackground = shouldStartInBackground(process.argv);
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -53,6 +80,7 @@ async function bootstrap(): Promise<void> {
   const lcu = new LcuClient(() => settings.get().leaguePath, logger);
   const collection = new CollectionService(lcu, store, settings, logger);
   const leagueSession = new LeagueSessionService(lcu, store);
+  const presence = new PresenceService(lcu, store, logger);
   const insights = new InsightsService(lcu, store, logger);
   const notifyUser = (title: string, body: string): void => {
     if (Notification.isSupported()) new Notification({ title, body, silent: false }).show();
@@ -77,7 +105,52 @@ async function bootstrap(): Promise<void> {
 
   await pengu.repairIfInstalled();
 
-  mainWindow = createWindow();
+  const launchRegistrations = await resolveLaunchRegistrations();
+  const startupRegistration = launchRegistrations.startup;
+  if (process.platform === "win32") {
+    const registered = app.setAsDefaultProtocolClient(
+      DESKTOP_LAUNCH_PROTOCOL_SCHEME,
+      launchRegistrations.protocol.path,
+      launchRegistrations.protocol.args,
+    );
+    if (registered) {
+      logger.info("Registered the Windows desktop recovery link");
+    } else {
+      logger.warn("Windows refused the desktop recovery link registration");
+    }
+  }
+  const setStartupEnabled = (enabled: boolean): void => {
+    if (process.platform !== "win32") return;
+    const loginItemOptions = {
+      openAtLogin: enabled,
+      enabled: true,
+      name: PRODUCT_NAME,
+      path: startupRegistration.path,
+      args: startupRegistration.args,
+    };
+    app.setLoginItemSettings(loginItemOptions);
+    const registrationState = app.getLoginItemSettings({
+      path: startupRegistration.path,
+      args: startupRegistration.args,
+    });
+    if (!startupLaunchStateMatches(enabled, registrationState)) {
+      throw new Error(enabled
+        ? "Windows registered SummonerKit but reports that it will not launch at sign-in. Check Startup apps in Windows Settings."
+        : "Windows still reports that SummonerKit will launch at sign-in.");
+    }
+    logger.info("Windows startup preference applied", {
+      enabled,
+      openAtLogin: registrationState.openAtLogin,
+      executableWillLaunchAtLogin: registrationState.executableWillLaunchAtLogin,
+    });
+  };
+  try {
+    setStartupEnabled(persisted.startup.launchOnWindowsStartup);
+  } catch (error) {
+    logger.warn("Could not apply the Windows startup preference", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  mainWindow = createWindow(logger);
   const chooseExecutable = async (id: "rose" | "deceive"): Promise<string | null> => {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -95,6 +168,21 @@ async function bootstrap(): Promise<void> {
     mainWindow.show();
     mainWindow.focus();
   };
+  let roseWasRunning = false;
+  const openDesktopWhenRoseStarts = (): void => {
+    const roseIsRunning = store.getSnapshot().integrations
+      .find((integration) => integration.id === "rose")?.running ?? false;
+    const shouldOpen = shouldOpenForProcessStart(
+      settings.get().startup.openOnRoseDetected,
+      roseWasRunning,
+      roseIsRunning,
+    );
+    roseWasRunning = roseIsRunning;
+    if (!shouldOpen || !mainWindow || mainWindow.isVisible()) return;
+    logger.info("Rose start detected; opening the desktop dashboard");
+    openDesktop();
+  };
+  store.on("changed", openDesktopWhenRoseStarts);
   router = new CommandRouter({
     store,
     settings,
@@ -104,10 +192,12 @@ async function bootstrap(): Promise<void> {
     integrations,
     insights,
     leagueSession,
+    presence,
     pengu,
     clientTabActivation,
     remote,
     openDesktop,
+    setStartupEnabled,
     chooseExecutable,
     logger,
   });
@@ -124,23 +214,54 @@ async function bootstrap(): Promise<void> {
   });
   const unregisterIpc = registerIpc({ window: mainWindow, store, router, remote, updates, logger });
 
+  let readyCheckActive = false;
+  const handleReadyCheckWindowPolicy = (): void => {
+    readyCheckActive = applyReadyCheckWindowPolicy({
+      previousActive: readyCheckActive,
+      active: store.getSnapshot().session.readyCheck.active,
+      window: mainWindow,
+      notify: notifyUser,
+    });
+  };
+  store.on("changed", handleReadyCheckWindowPolicy);
+
+  let openedOnLeagueConnect = false;
+  lcu.on("connected", () => {
+    if (openedOnLeagueConnect) return;
+    openedOnLeagueConnect = true;
+    if (settings.get().startup.openOnLeagueDetected && mainWindow && !mainWindow.isVisible()) openDesktop();
+  });
+  lcu.on("disconnected", () => { openedOnLeagueConnect = false; });
   lcu.on("state", (state) => store.update((snapshot) => { snapshot.connection = state; }));
   clientTabActivation.start();
   collection.start();
   await insights.start();
   leagueSession.start();
+  presence.start();
   automation.start();
   aram.start();
   await bridge.start();
   await Promise.all([integrations.refresh(), pengu.refresh()]);
+  const integrationRefreshTimer = setInterval(() => {
+    void integrations.refresh().catch((error) => {
+      logger.warn("Could not refresh external integration status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, 4_000);
   lcu.start();
-  createTray(mainWindow);
+  const disposeTray = createTray(mainWindow, store, router, notifyUser);
 
   app.on("before-quit", () => {
     isQuitting = true;
+    disposeTray();
+    store.off("changed", handleReadyCheckWindowPolicy);
+    store.off("changed", openDesktopWhenRoseStarts);
+    clearInterval(integrationRefreshTimer);
     clientTabActivation.stop();
     automation.stop();
     leagueSession.stop();
+    presence.stop();
     insights.stop();
     remote.stop();
     lcu.stop();
@@ -149,7 +270,7 @@ async function bootstrap(): Promise<void> {
   });
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(logger: AppLogger): BrowserWindow {
   const window = new BrowserWindow({
     title: PRODUCT_NAME,
     width: 1_280,
@@ -190,15 +311,58 @@ function createWindow(): BrowserWindow {
     if (externalUrl) void shell.openExternal(externalUrl);
     return { action: "deny" };
   });
-  window.webContents.on("will-navigate", (event, url) => {
-    if (url !== window.webContents.getURL()) event.preventDefault();
+  const blockUnexpectedNavigation = (event: Electron.Event, url: string): void => {
+    if (url !== window.webContents.getURL() || !trustedRendererUrl(url)) event.preventDefault();
+  };
+  window.webContents.on("will-navigate", blockUnexpectedNavigation);
+  window.webContents.on("will-redirect", blockUnexpectedNavigation);
+  window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+  window.webContents.on("preload-error", (_event, _preloadPath, error) => {
+    logger.error("Desktop preload failed", { error: error.message });
+  });
+  window.webContents.on("render-process-gone", (_event, details) => {
+    logger.error("Desktop renderer process stopped unexpectedly", {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
   });
   window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  else void window.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const rendererRoot = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
+    window.webContents.session.protocol.handle(RENDERER_SCHEME, (request) => {
+      const filePath = rendererFilePath(rendererRoot, request.url);
+      return filePath
+        ? net.fetch(pathToFileURL(filePath).toString())
+        : new Response(null, { status: 404 });
+    });
+  }
+
+  void loadRenderer(window, logger);
   return window;
+}
+
+async function loadRenderer(window: BrowserWindow, logger: AppLogger): Promise<void> {
+  try {
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) await window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    else await window.loadURL(`${RENDERER_SCHEME}://app/index.html`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Desktop renderer failed to load", { error: message });
+    const failurePage = `<!doctype html>
+      <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+      <title>SummonerKit could not open</title><style>
+       :root{color-scheme:dark;font-family:"Segoe UI",sans-serif}body{display:grid;min-height:100vh;margin:0;place-items:center;color:#f4efe8;background:#090b0f}.card{width:min(34rem,calc(100% - 3rem));padding:2rem;background:#12161d;border:1px solid #df6b65;border-radius:12px}.mark{display:block;width:3.5rem;height:3.5rem;margin-bottom:1rem;object-fit:contain;filter:drop-shadow(0 5px 12px rgb(0 0 0 / .35))}h1{margin:.75rem 0;font:700 2rem Georgia,serif}p{margin:0;color:#bbb5ad;line-height:1.6}code{display:block;margin-top:1rem;padding:.75rem;color:#dfa452;background:#090b0f;border:1px solid #292f39;border-radius:8px;white-space:normal}
+       </style></head><body><main class="card"><img class="mark" src="${PRODUCT_ICON_DATA_URL}" alt=""><h1>The desktop interface could not load.</h1><p>The local engine can remain available to the League tab. Close this window, reopen ${PRODUCT_NAME}, and check the diagnostic log if the problem continues.</p><code>Renderer load failed. No credentials were exposed.</code></main></body></html>`;
+    try {
+      await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(failurePage)}`);
+      if (!startInBackground) window.show();
+    } catch {
+      dialog.showErrorBox(`${PRODUCT_NAME} could not open`, `The desktop interface failed to load. Check the ${PRODUCT_NAME} diagnostic log for details.`);
+    }
+  }
 }
 
 function applicationAssetPath(filename: "icon.ico" | "tray-icon.png"): string {
@@ -208,15 +372,253 @@ function applicationAssetPath(filename: "icon.ico" | "tray-icon.png"): string {
   return path.join(assetDirectory, filename);
 }
 
-function createTray(window: BrowserWindow): void {
+async function resolveLaunchRegistrations(): Promise<{
+  startup: StartupRegistration;
+  protocol: StartupRegistration;
+}> {
+  const executablePath = process.execPath;
+  const appFolder = path.dirname(executablePath);
+  const executableName = path.basename(executablePath);
+  const squirrelStubPath = app.isPackaged
+    ? path.resolve(appFolder, "..", executableName)
+    : null;
+  const updateExecutable = path.resolve(appFolder, "..", "Update.exe");
+  const usableSquirrelStub = squirrelStubPath
+    && await fileExists(updateExecutable)
+    && await fileExists(squirrelStubPath)
+    ? squirrelStubPath
+    : null;
+  const context = {
+    isPackaged: app.isPackaged,
+    executablePath,
+    appPath: app.getAppPath(),
+    squirrelStubPath: usableSquirrelStub,
+  };
+  return {
+    startup: createStartupRegistration(context),
+    protocol: createDesktopProtocolRegistration(context),
+  };
+}
+
+const trayAutomationFeatures: ReadonlyArray<{
+  key: Exclude<keyof AutomationSettings, "riskAcknowledged" | "executionMode">;
+  label: string;
+}> = [
+  { key: "autoAccept", label: "Auto Accept" },
+  { key: "autoPick", label: "Auto Pick" },
+  { key: "autoBan", label: "Auto Ban" },
+  { key: "autoSpells", label: "Auto Spells" },
+  { key: "autoRunes", label: "Auto Runes" },
+];
+
+function createTray(
+  window: BrowserWindow,
+  store: CompanionStore,
+  router: CommandRouter,
+  notifyUser: (title: string, body: string) => void,
+): () => void {
   tray = new Tray(applicationAssetPath("tray-icon.png"));
-  tray.setToolTip("SummonerKit");
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open SummonerKit", click: () => { window.show(); window.focus(); } },
+  tray.setToolTip(PRODUCT_NAME);
+
+  const openWindow = (): void => {
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  };
+  let menuSignature = "";
+  const dispatch = async (command: CompanionCommand): Promise<void> => {
+    const result = await router.dispatch(command);
+    if (!result.ok) {
+      notifyUser(`${PRODUCT_NAME} setting was not changed`, result.message);
+      menuSignature = "";
+      refreshMenu();
+    }
+  };
+  const refreshMenu = (): void => {
+    if (!tray || tray.isDestroyed()) return;
+    const snapshot = store.getSnapshot();
+    const signature = trayMenuSignature(snapshot);
+    if (signature === menuSignature) return;
+    menuSignature = signature;
+    tray.setContextMenu(Menu.buildFromTemplate(trayMenuTemplate(snapshot, openWindow, dispatch)));
+  };
+
+  refreshMenu();
+  store.on("changed", refreshMenu);
+  tray.on("double-click", openWindow);
+
+  return () => {
+    store.off("changed", refreshMenu);
+    if (tray && !tray.isDestroyed()) tray.destroy();
+    tray = null;
+  };
+}
+
+function trayMenuSignature(snapshot: CompanionSnapshot): string {
+  return JSON.stringify({
+    connection: snapshot.connection.status,
+    presenceCapability: snapshot.connection.capabilities.presence,
+    presenceStatus: snapshot.presence.status,
+    presenceAvailability: snapshot.presence.availability,
+    presenceError: snapshot.presence.lastError,
+    launchOnWindowsStartup: snapshot.startup.launchOnWindowsStartup,
+    openOnLeagueDetected: snapshot.startup.openOnLeagueDetected,
+    openOnRoseDetected: snapshot.startup.openOnRoseDetected,
+    riskAcknowledged: snapshot.automation.riskAcknowledged,
+    executionMode: snapshot.automation.executionMode,
+    features: trayAutomationFeatures.map((feature) => snapshot.automation[feature.key]),
+  });
+}
+
+function trayMenuTemplate(
+  snapshot: CompanionSnapshot,
+  openWindow: () => void,
+  dispatch: (command: CompanionCommand) => Promise<void>,
+): MenuItemConstructorOptions[] {
+  const presenceWritable = snapshot.connection.status === "connected"
+    && snapshot.connection.capabilities.presence
+    && snapshot.presence.status === "ready";
+  const automationUnlocked = snapshot.automation.riskAcknowledged;
+  const activeFeatures = trayAutomationFeatures.filter((feature) => snapshot.automation[feature.key]);
+  const presenceDetail = snapshot.connection.status !== "connected"
+    ? "League client is not connected"
+    : !snapshot.connection.capabilities.presence
+      ? "Presence is unavailable on this patch"
+      : snapshot.presence.status === "loading"
+        ? "Waiting for League to confirm"
+        : snapshot.presence.status !== "ready"
+          ? snapshot.presence.lastError ?? "Presence is temporarily unavailable"
+          : null;
+
+  const presenceMenu: MenuItemConstructorOptions[] = [
+    ...(presenceDetail ? [{ label: presenceDetail, enabled: false } satisfies MenuItemConstructorOptions] : []),
+    {
+      label: "Online",
+      type: "radio",
+      checked: snapshot.presence.availability === "online",
+      enabled: presenceWritable,
+      click: () => { void dispatch({ type: "presence.set", availability: "online" }); },
+    },
+    {
+      label: "Away",
+      type: "radio",
+      checked: snapshot.presence.availability === "away",
+      enabled: presenceWritable,
+      click: () => { void dispatch({ type: "presence.set", availability: "away" }); },
+    },
+  ];
+
+  const automationMenu: MenuItemConstructorOptions[] = [
+    ...(!automationUnlocked ? [{
+      label: "Acknowledge risk in the app first",
+      enabled: false,
+    } satisfies MenuItemConstructorOptions] : []),
+    ...trayAutomationFeatures.map<MenuItemConstructorOptions>((feature) => ({
+      label: feature.label,
+      type: "checkbox",
+      checked: snapshot.automation[feature.key],
+      enabled: automationUnlocked,
+      click: () => {
+        void dispatch({
+          type: "automation.setEnabled",
+          feature: feature.key,
+          enabled: !snapshot.automation[feature.key],
+        });
+      },
+    })),
+    { type: "separator" },
+    {
+      label: `Execution mode: ${executionModeLabel(snapshot.automation.executionMode)}`,
+      enabled: automationUnlocked,
+      submenu: [
+        {
+          label: "Dry run",
+          type: "radio",
+          checked: snapshot.automation.executionMode === "dry-run",
+          click: () => { void dispatch({ type: "automation.setMode", mode: "dry-run" }); },
+        },
+        {
+          label: "Confirm each action",
+          type: "radio",
+          checked: snapshot.automation.executionMode === "confirm",
+          click: () => { void dispatch({ type: "automation.setMode", mode: "confirm" }); },
+        },
+        {
+          label: "Automatic",
+          type: "radio",
+          checked: snapshot.automation.executionMode === "automatic",
+          click: () => { void dispatch({ type: "automation.setMode", mode: "automatic" }); },
+        },
+      ],
+    },
+    {
+      label: "Disable all automation",
+      enabled: activeFeatures.length > 0,
+      click: () => { void dispatch({ type: "automation.disableAll" }); },
+    },
+  ];
+
+  const startupMenu: MenuItemConstructorOptions[] = [
+    {
+      label: "Start with Windows",
+      type: "checkbox",
+      checked: snapshot.startup.launchOnWindowsStartup,
+      enabled: process.platform === "win32",
+      click: () => {
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "launchOnWindowsStartup",
+          enabled: !snapshot.startup.launchOnWindowsStartup,
+        });
+      },
+    },
+    {
+      label: "Open when League connects",
+      type: "checkbox",
+      checked: snapshot.startup.openOnLeagueDetected,
+      click: () => {
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "openOnLeagueDetected",
+          enabled: !snapshot.startup.openOnLeagueDetected,
+        });
+      },
+    },
+    {
+      label: "Open when Rose starts",
+      type: "checkbox",
+      checked: snapshot.startup.openOnRoseDetected,
+      click: () => {
+        void dispatch({
+          type: "startup.setEnabled",
+          setting: "openOnRoseDetected",
+          enabled: !snapshot.startup.openOnRoseDetected,
+        });
+      },
+    },
+    {
+      label: snapshot.startup.launchOnWindowsStartup
+        ? "The engine runs quietly in the tray at sign-in."
+        : "Enable Start with Windows for hands-free League detection.",
+      enabled: false,
+    },
+  ];
+
+  return [
+    { label: `Open ${PRODUCT_NAME}`, click: openWindow },
+    { type: "separator" },
+    { label: "Startup", submenu: startupMenu },
+    { label: "League presence", submenu: presenceMenu },
+    { label: "Automation", submenu: automationMenu },
     { type: "separator" },
     { label: "Quit", click: () => { isQuitting = true; app.quit(); } },
-  ]));
-  tray.on("double-click", () => { window.show(); window.focus(); });
+  ];
+}
+
+function executionModeLabel(mode: AutomationSettings["executionMode"]): string {
+  if (mode === "dry-run") return "Dry run";
+  if (mode === "confirm") return "Confirm each action";
+  return "Automatic";
 }
 
 async function migrateLegacyUserData(): Promise<void> {
@@ -247,13 +649,15 @@ async function fileExists(candidate: string): Promise<boolean> {
   }
 }
 
-app.on("second-instance", () => {
+app.on("second-instance", (_event, commandLine) => {
+  if (shouldStartInBackground(commandLine)) return;
+  if (mainWindow?.isMinimized()) mainWindow.restore();
   mainWindow?.show();
   mainWindow?.focus();
 });
 
 app.whenReady().then(bootstrap).catch((error) => {
-  void dialog.showErrorBox("SummonerKit failed to start", error instanceof Error ? error.message : String(error));
+  void dialog.showErrorBox(`${PRODUCT_NAME} failed to start`, error instanceof Error ? error.message : String(error));
   app.quit();
 });
 

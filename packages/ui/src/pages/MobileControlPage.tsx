@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, KeyRound, LockKeyhole, QrCode, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import type { CompanionBridge, CompanionCommand, CompanionSnapshot, RemotePairingOffer } from "@summonerkit/contracts";
 import { StatusPill } from "../components/StatusPill";
@@ -16,6 +16,41 @@ export function MobileControlPage({
   const [offer, setOffer] = useState<RemotePairingOffer | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [relayUrl, setRelayUrl] = useState(snapshot.remote.relayUrl ?? "");
+  const [mobileUrl, setMobileUrl] = useState(snapshot.remote.mobileUrl ?? "https://mohamedmagdy2208.github.io/SummonerKit/");
+  const [adminSecret, setAdminSecret] = useState("");
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+  useEffect(() => {
+    if (snapshot.remote.relayUrl) setRelayUrl(snapshot.remote.relayUrl);
+    if (snapshot.remote.mobileUrl) setMobileUrl(snapshot.remote.mobileUrl);
+  }, [snapshot.remote.mobileUrl, snapshot.remote.relayUrl]);
+
+  useEffect(() => {
+    if (!offer) {
+      setSecondsRemaining(0);
+      return;
+    }
+    const expiresAt = Date.parse(offer.expiresAt);
+    const updateExpiry = () => {
+      const next = Number.isFinite(expiresAt) ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1_000)) : 0;
+      setSecondsRemaining(next);
+      if (next === 0) {
+        setOffer(null);
+        setMessage("Pairing code expired. Create a new QR code to connect a phone.");
+      }
+    };
+    updateExpiry();
+    const timer = window.setInterval(updateExpiry, 1_000);
+    return () => window.clearInterval(timer);
+  }, [offer]);
+
+  useEffect(() => {
+    if (snapshot.remote.status !== "connected" || !offer) return;
+    setOffer(null);
+    setSecondsRemaining(0);
+    setMessage("Phone paired. The one-time QR secret was cleared.");
+  }, [offer, snapshot.remote.status]);
 
   const createPairing = async () => {
     setBusy(true);
@@ -40,12 +75,45 @@ export function MobileControlPage({
     }
   };
 
+  const saveConfiguration = async () => {
+    setBusy(true);
+    try {
+      await onCommand({ type: "remote.configure", relayUrl, mobileUrl, adminSecret });
+      setOffer(null);
+      setAdminSecret("");
+      setMessage("Configuration submitted. The relay status above confirms when it is ready.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="page remote-page">
       <header className="page-header page-header--split">
         <div><p className="eyebrow">Encrypted mobile control</p><h1>Queue and champion select, securely on your phone.</h1><p className="page-lede">Start the current lobby queue, answer ready checks, follow the draft, and choose champions, spells, runes, owned skins, or ARAM swaps. The relay routes ciphertext it cannot read, and the desktop validates every command.</p></div>
         <StatusPill tone={snapshot.remote.status === "connected" ? "positive" : snapshot.remote.status === "error" ? "danger" : snapshot.remote.relayConfigured ? "accent" : "neutral"}>{snapshot.remote.status}</StatusPill>
       </header>
+
+      <section className="mobile-setup-guide" aria-labelledby="mobile-setup-title">
+        <div><p className="eyebrow">Three-step setup</p><h2 id="mobile-setup-title">Pair once for the current secure session</h2></div>
+        <ol>
+          <li><span>1</span><div><strong>Keep SummonerKit in the tray</strong><p>The desktop owns League access and must remain running.</p></div></li>
+          <li><span>2</span><div><strong>Create and scan a private code</strong><p>It expires after three minutes and cannot be claimed twice.</p></div></li>
+          <li><span>3</span><div><strong>Install and enable alerts</strong><p>Add the PWA to your phone and allow local queue-pop notifications.</p></div></li>
+        </ol>
+        <p>Temporary phone network drops retry automatically. Desktop restarts, revocation, and expired sessions require a new code.</p>
+      </section>
+
+      <details className="remote-config-editor" open={!snapshot.remote.relayConfigured}>
+        <summary>{snapshot.remote.relayConfigured ? "Change relay configuration" : "Configure the relay deployment"}</summary>
+        <p>Deploy the included Cloudflare Worker once, then paste its HTTPS URL and the same administrator secret used by the Worker. The secret is protected with Windows credential encryption.</p>
+        <div className="form-grid">
+          <label className="field"><span>Relay Worker URL</span><input type="url" value={relayUrl} placeholder="https://summonerkit-relay.example.workers.dev" onChange={(event) => setRelayUrl(event.target.value)} /></label>
+          <label className="field"><span>Mobile PWA URL</span><input type="url" value={mobileUrl} onChange={(event) => setMobileUrl(event.target.value)} /></label>
+          <label className="field field--wide"><span>Relay administrator secret <small>{snapshot.remote.relayConfigured ? "Enter a new value only when changing configuration" : "At least 32 characters"}</small></span><input type="password" autoComplete="new-password" value={adminSecret} placeholder="Stored encrypted and never shown again" onChange={(event) => setAdminSecret(event.target.value)} /></label>
+        </div>
+        <button className="button button--secondary" type="button" disabled={busy || !relayUrl || !mobileUrl || adminSecret.length < 32} onClick={() => void saveConfiguration()}><ShieldCheck size={15} />Encrypt and save</button>
+      </details>
 
       {!snapshot.remote.relayConfigured ? (
         <section className="remote-configuration" role="status">
@@ -58,8 +126,9 @@ export function MobileControlPage({
           {offer ? (
             <div className="pairing-code">
               <img src={offer.qrDataUrl} alt="One-time SummonerKit mobile pairing QR code" />
-              <p>Expires {formatRelativeTime(offer.expiresAt)}</p>
-              <button className="text-button" type="button" onClick={() => void copyLink()}><Copy size={14} /> Copy private link</button>
+              <p className="pairing-code__expiry">Expires in <strong>{secondsRemaining > 0 ? formatPairingExpiry(secondsRemaining) : "checking…"}</strong></p>
+              <button className="text-button" type="button" onClick={() => void copyLink()}><Copy size={14} /> Copy link if the camera cannot scan</button>
+              <p className="pairing-code__warning"><LockKeyhole size={13} /> Never post this QR code or private link.</p>
             </div>
           ) : <div className="pairing-placeholder"><Smartphone size={38} /><span>No active pairing code</span></div>}
         </section>
@@ -85,4 +154,10 @@ export function MobileControlPage({
       </section>
     </div>
   );
+}
+
+function formatPairingExpiry(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }

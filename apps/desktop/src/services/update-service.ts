@@ -1,4 +1,4 @@
-import type { AppUpdateState } from "@summonerkit/contracts";
+import { PRODUCT_NAME, type AppUpdateState } from "@summonerkit/contracts";
 
 type SimpleUpdateEvent = "checking-for-update" | "update-available" | "update-not-available";
 
@@ -62,14 +62,14 @@ export class UpdateService {
   }
 
   private markCurrent(): void {
-    this.setState("current", `SummonerKit ${this.options.currentVersion} is up to date.`, {
+    this.setState("current", `${PRODUCT_NAME} ${this.options.currentVersion} is up to date.`, {
       checkedAt: new Date().toISOString(),
     });
   }
 
   private markReady(releaseName: string): void {
     const availableVersion = releaseName.replace(/^v/u, "") || null;
-    this.setState("ready", `SummonerKit ${availableVersion ?? "update"} is ready. Restart to install it.`, {
+    this.setState("ready", `${PRODUCT_NAME} ${availableVersion ?? "update"} is ready. Restart to install it.`, {
       availableVersion,
       checkedAt: new Date().toISOString(),
       canRestart: true,
@@ -93,7 +93,7 @@ function initialUpdateState(options: UpdateServiceOptions): AppUpdateState {
       currentVersion: options.currentVersion,
       availableVersion: null,
       checkedAt: null,
-      message: "Install SummonerKit with Windows Setup to enable one-click updates. Portable and development builds can use GitHub Releases.",
+      message: `Install ${PRODUCT_NAME} with Windows Setup to enable one-click updates. Portable and development builds can use GitHub Releases.`,
       canCheck: false,
       canRestart: false,
     };
@@ -103,7 +103,7 @@ function initialUpdateState(options: UpdateServiceOptions): AppUpdateState {
     currentVersion: options.currentVersion,
     availableVersion: null,
     checkedAt: null,
-    message: "Check GitHub Releases when you are ready. SummonerKit never installs an update silently.",
+    message: `Check GitHub Releases when you are ready. ${PRODUCT_NAME} never installs an update silently.`,
     canCheck: true,
     canRestart: false,
   };

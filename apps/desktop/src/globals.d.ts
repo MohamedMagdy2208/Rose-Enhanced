@@ -5,7 +5,7 @@ declare global {
   const MAIN_WINDOW_VITE_NAME: string;
 
   interface Window {
-    summonerKit: CompanionBridge;
+    summonerKit?: CompanionBridge;
   }
 }
 

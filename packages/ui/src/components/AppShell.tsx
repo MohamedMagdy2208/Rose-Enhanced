@@ -1,39 +1,19 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
-  Bot,
-  BookOpenCheck,
-  Boxes,
-  ChartNoAxesCombined,
-  Dices,
-  Gauge,
   Menu,
   MonitorUp,
-  PlugZap,
-  Settings,
   ShieldCheck,
-  Smartphone,
-  Stethoscope,
   X,
 } from "lucide-react";
+import { PRODUCT_AUTHOR, PRODUCT_NAME } from "@summonerkit/contracts";
 import type { ConnectionStatus } from "@summonerkit/contracts";
+import { BrandMark } from "./BrandMark";
 import { StatusPill } from "./StatusPill";
+import { navigationForSurface, navigationGroups, navigationItems, type AppSurface, type PageId } from "./navigation";
 
-export type AppSurface = "desktop" | "client" | "mobile";
-export type PageId = "dashboard" | "collection" | "insights" | "automation" | "aram" | "integrations" | "mobile" | "doctor" | "guide" | "settings";
-
-const navItems: Array<{ id: PageId; label: string; icon: typeof Gauge; desktopOnly?: boolean }> = [
-  { id: "dashboard", label: "Overview", icon: Gauge },
-  { id: "collection", label: "Collection", icon: Boxes },
-  { id: "insights", label: "Runes & Performance", icon: ChartNoAxesCombined },
-  { id: "automation", label: "Automation", icon: Bot },
-  { id: "aram", label: "ARAM", icon: Dices },
-  { id: "integrations", label: "Integrations", icon: PlugZap, desktopOnly: true },
-  { id: "mobile", label: "Mobile Control", icon: Smartphone, desktopOnly: true },
-  { id: "doctor", label: "Connection Doctor", icon: Stethoscope, desktopOnly: true },
-  { id: "guide", label: "Guide & Updates", icon: BookOpenCheck, desktopOnly: true },
-  { id: "settings", label: "Diagnostics", icon: Settings, desktopOnly: true },
-];
+export { navigationForSurface, navigationGroupsForSurface } from "./navigation";
+export type { AppSurface, NavigationGroupId, PageId } from "./navigation";
 
 function statusTone(status: ConnectionStatus) {
   if (status === "connected") return "positive" as const;
@@ -60,12 +40,39 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const previousPageRef = useRef(activePage);
   const visiblePageIds = new Set(navigationForSurface(surface));
-  const visibleItems = navItems.filter((item) => visiblePageIds.has(item.id));
+  const visibleItems = navigationItems.filter((item) => visiblePageIds.has(item.id));
+  const visibleGroups = navigationGroups
+    .map((group) => ({ ...group, items: visibleItems.filter((item) => item.group === group.id) }))
+    .filter((group) => group.items.length > 0);
+  const activeItem = visibleItems.find((item) => item.id === activePage) ?? visibleItems[0];
+  const activeGroup = navigationGroups.find((group) => group.id === activeItem?.group);
+
+  useEffect(() => {
+    if (previousPageRef.current === activePage) return;
+    previousPageRef.current = activePage;
+    window.scrollTo({ top: 0, behavior: "auto" });
+    mainRef.current?.focus({ preventScroll: true });
+  }, [activePage]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
 
   const selectPage = (page: PageId) => {
     onPageChange(page);
     setMenuOpen(false);
+    if (page === activePage) mainRef.current?.focus({ preventScroll: true });
   };
 
   return (
@@ -73,6 +80,7 @@ export function AppShell({
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="mobile-header">
         <button
+          ref={menuButtonRef}
           className="icon-button"
           type="button"
           aria-label={menuOpen ? "Close navigation" : "Open navigation"}
@@ -81,25 +89,38 @@ export function AppShell({
         >
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
-        <Brand compact />
-        <span className={`connection-dot connection-dot--${connectionStatus}`} aria-hidden="true" />
+        <div className="mobile-header__identity">
+          <Brand compact />
+          <span className="mobile-header__context">
+            <small>{activeGroup?.label ?? "SummonerKit"}</small>
+            <strong>{activeItem?.label ?? "Overview"}</strong>
+          </span>
+        </div>
+        <span className={`connection-dot connection-dot--${connectionStatus}`} aria-label={`League client ${connectionStatus}`} role="status" />
       </header>
 
       <aside className={`sidebar${menuOpen ? " sidebar--open" : ""}`} aria-label="Primary navigation">
         <Brand />
-        {surface === "client" ? <div className="surface-badge"><span>Inside Rose</span><small>Desktop-backed panel</small></div> : null}
-        <nav className="sidebar__nav">
-          {visibleItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              className={`nav-item${activePage === id ? " nav-item--active" : ""}`}
-              aria-current={activePage === id ? "page" : undefined}
-              onClick={() => selectPage(id)}
-            >
-              <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-              <span>{label}</span>
-            </button>
+        {surface === "client" ? <div className="surface-badge"><span>Inside SummonerKit</span><small>League client tab · desktop-backed</small></div> : null}
+        <nav className="sidebar__nav" aria-label="Sections">
+          {visibleGroups.map((group) => (
+            <section className="nav-group" aria-labelledby={`nav-group-${group.id}`} key={group.id}>
+              <h2 className="nav-group__label" id={`nav-group-${group.id}`}>{group.label}</h2>
+              <div className="nav-group__items">
+                {group.items.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`nav-item${activePage === id ? " nav-item--active" : ""}`}
+                    aria-current={activePage === id ? "page" : undefined}
+                    onClick={() => selectPage(id)}
+                  >
+                    <span className="nav-item__icon"><Icon size={17} strokeWidth={1.8} aria-hidden="true" /></span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
 
@@ -130,33 +151,28 @@ export function AppShell({
           className="sidebar-backdrop"
           type="button"
           aria-label="Close navigation"
-          onClick={() => setMenuOpen(false)}
+          onClick={() => {
+            setMenuOpen(false);
+            menuButtonRef.current?.focus();
+          }}
         />
       ) : null}
 
-      <main id="main-content" className="main-content" tabIndex={-1}>
+      <main ref={mainRef} id="main-content" className="main-content" tabIndex={-1}>
         {children}
       </main>
     </div>
   );
 }
 
-export function navigationForSurface(surface: AppSurface): PageId[] {
-  return navItems
-    .filter((item) => !(item.desktopOnly && surface !== "desktop"))
-    .map((item) => item.id);
-}
-
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label="SummonerKit by Mohamed Magdy">
-      <span className="brand__mark" aria-hidden="true">
-        <span>SK</span>
-      </span>
+    <div className={`brand${compact ? " brand--compact" : ""}`} aria-label={`${PRODUCT_NAME} by ${PRODUCT_AUTHOR}`}>
+      <BrandMark className="brand__mark" />
       {!compact ? (
         <span className="brand__copy">
-          <strong>SummonerKit</strong>
-          <small>by Mohamed Magdy</small>
+          <strong>{PRODUCT_NAME}</strong>
+          <small>by {PRODUCT_AUTHOR}</small>
         </span>
       ) : null}
     </div>

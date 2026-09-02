@@ -22,6 +22,11 @@ export interface EncryptedEnvelope {
   ciphertext: string;
 }
 
+const maxRemoteRoomIdLength = 128;
+const maxRemoteCiphertextChars = 128 * 1024;
+const maxRemotePlaintextBytes = 48 * 1024;
+const base64UrlPattern = /^[A-Za-z0-9_-]+$/u;
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -32,6 +37,7 @@ function toBase64Url(value: Uint8Array): string {
 }
 
 function fromBase64Url(value: string): Uint8Array {
+  if (!value || !base64UrlPattern.test(value) || value.length % 4 === 1) throw new Error("Invalid base64url value.");
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
   const binary = atob(padded);
@@ -44,7 +50,9 @@ function cryptoApi(): Crypto {
 }
 
 function canonicalPublicKey(publicKey: JsonWebKey): Uint8Array {
-  if (publicKey.kty !== "EC" || publicKey.crv !== "P-256" || !publicKey.x || !publicKey.y) {
+  if (publicKey.kty !== "EC" || publicKey.crv !== "P-256" || !publicKey.x || !publicKey.y
+    || publicKey.x.length !== 43 || publicKey.y.length !== 43
+    || !base64UrlPattern.test(publicKey.x) || !base64UrlPattern.test(publicKey.y)) {
     throw new Error("Remote public key is not a P-256 ECDH key.");
   }
   return encoder.encode(JSON.stringify({ kty: publicKey.kty, crv: publicKey.crv, x: publicKey.x, y: publicKey.y }));
@@ -56,7 +64,7 @@ export async function publicKeyFingerprint(publicKey: JsonWebKey): Promise<strin
 }
 
 async function pairingHmacKey(oneTimeSecret: string, usages: KeyUsage[]): Promise<CryptoKey> {
-  if (oneTimeSecret.length < 16 || oneTimeSecret.length > 256) throw new Error("Invalid pairing secret.");
+  if (oneTimeSecret.length < 16 || oneTimeSecret.length > 256 || !base64UrlPattern.test(oneTimeSecret)) throw new Error("Invalid pairing secret.");
   return cryptoApi().subtle.importKey(
     "raw",
     asArrayBuffer(fromBase64Url(oneTimeSecret)),
@@ -67,7 +75,7 @@ async function pairingHmacKey(oneTimeSecret: string, usages: KeyUsage[]): Promis
 }
 
 async function pairingProofPayload(roomId: string, publicKey: JsonWebKey): Promise<ArrayBuffer> {
-  if (!roomId || roomId.length > 128) throw new Error("Invalid remote room identifier.");
+  if (!roomId || roomId.length > maxRemoteRoomIdLength) throw new Error("Invalid remote room identifier.");
   const fingerprint = await publicKeyFingerprint(publicKey);
   return asArrayBuffer(encoder.encode(`summonerkit-pairing:v1:${roomId}:${fingerprint}`));
 }
@@ -142,7 +150,7 @@ export async function deriveSessionKeys(
   ownPrivateKey: JsonWebKey,
   peerPublicKey: JsonWebKey,
 ): Promise<SessionKeys> {
-  if (!roomId || roomId.length > 128) throw new Error("Invalid remote room identifier.");
+  if (!roomId || roomId.length > maxRemoteRoomIdLength) throw new Error("Invalid remote room identifier.");
   const ownKey = await cryptoApi().subtle.importKey(
     "jwk",
     ownPrivateKey,
@@ -175,6 +183,33 @@ function additionalData(envelope: Pick<EncryptedEnvelope, "version" | "roomId" |
   return asArrayBuffer(encoder.encode(`${envelope.version}|${envelope.roomId}|${envelope.direction}|${envelope.sequence}`));
 }
 
+export function parseEncryptedEnvelope(candidate: unknown): EncryptedEnvelope {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("Encrypted message envelope is invalid.");
+  const envelope = candidate as Partial<EncryptedEnvelope>;
+  if (envelope.version !== 1 || typeof envelope.roomId !== "string" || !envelope.roomId || envelope.roomId.length > maxRemoteRoomIdLength) {
+    throw new Error("Encrypted message context is invalid.");
+  }
+  if (envelope.direction !== "desktop-to-mobile" && envelope.direction !== "mobile-to-desktop") {
+    throw new Error("Encrypted message direction is invalid.");
+  }
+  const sequence = envelope.sequence;
+  if (typeof sequence !== "number" || !Number.isSafeInteger(sequence) || sequence < 1) throw new Error("Encrypted message sequence is invalid.");
+  if (typeof envelope.nonce !== "string" || envelope.nonce.length !== 16 || !base64UrlPattern.test(envelope.nonce)) {
+    throw new Error("Encrypted message nonce is invalid.");
+  }
+  if (typeof envelope.ciphertext !== "string" || envelope.ciphertext.length === 0 || envelope.ciphertext.length > maxRemoteCiphertextChars || !base64UrlPattern.test(envelope.ciphertext)) {
+    throw new Error("Encrypted message ciphertext is invalid.");
+  }
+  return {
+    version: 1,
+    roomId: envelope.roomId,
+    direction: envelope.direction,
+    sequence,
+    nonce: envelope.nonce,
+    ciphertext: envelope.ciphertext,
+  };
+}
+
 export class EncryptedChannel {
   private outboundSequence = 0;
   private inboundSequence = 0;
@@ -182,6 +217,10 @@ export class EncryptedChannel {
   constructor(private readonly roomId: string, private readonly keys: SessionKeys) {}
 
   async seal(value: unknown): Promise<EncryptedEnvelope> {
+    const serializedValue = JSON.stringify(value);
+    if (typeof serializedValue !== "string") throw new Error("Encrypted message payload is not JSON serializable.");
+    const plaintext = encoder.encode(serializedValue);
+    if (plaintext.byteLength > maxRemotePlaintextBytes) throw new Error("Encrypted message payload is too large.");
     this.outboundSequence += 1;
     const sequence = this.outboundSequence;
     const nonce = cryptoApi().getRandomValues(new Uint8Array(12));
@@ -194,7 +233,7 @@ export class EncryptedChannel {
     const ciphertext = await cryptoApi().subtle.encrypt(
       { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: additionalData(header), tagLength: 128 },
       this.keys.outbound,
-      asArrayBuffer(encoder.encode(JSON.stringify(value))),
+      asArrayBuffer(plaintext),
     );
     return {
       ...header,
@@ -204,19 +243,21 @@ export class EncryptedChannel {
   }
 
   async open<T>(envelope: EncryptedEnvelope): Promise<T> {
-    if (envelope.version !== 1 || envelope.roomId !== this.roomId) throw new Error("Encrypted message context is invalid.");
-    if (envelope.direction !== this.keys.inboundDirection) throw new Error("Encrypted message direction is invalid.");
-    if (!Number.isSafeInteger(envelope.sequence) || envelope.sequence !== this.inboundSequence + 1) {
+    const normalized = parseEncryptedEnvelope(envelope);
+    if (normalized.roomId !== this.roomId) throw new Error("Encrypted message context is invalid.");
+    if (normalized.direction !== this.keys.inboundDirection) throw new Error("Encrypted message direction is invalid.");
+    if (normalized.sequence !== this.inboundSequence + 1) {
       throw new Error("Encrypted message was replayed or arrived out of order.");
     }
-    const nonce = fromBase64Url(envelope.nonce);
+    const nonce = fromBase64Url(normalized.nonce);
     if (nonce.byteLength !== 12) throw new Error("Encrypted message nonce is invalid.");
     const plaintext = await cryptoApi().subtle.decrypt(
-      { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: additionalData(envelope), tagLength: 128 },
+      { name: "AES-GCM", iv: asArrayBuffer(nonce), additionalData: additionalData(normalized), tagLength: 128 },
       this.keys.inbound,
-      asArrayBuffer(fromBase64Url(envelope.ciphertext)),
+      asArrayBuffer(fromBase64Url(normalized.ciphertext)),
     );
-    this.inboundSequence = envelope.sequence;
+    if (plaintext.byteLength > maxRemotePlaintextBytes) throw new Error("Encrypted message payload is too large.");
+    this.inboundSequence = normalized.sequence;
     return JSON.parse(decoder.decode(plaintext)) as T;
   }
 }

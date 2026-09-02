@@ -7,7 +7,15 @@ import type {
   RuneRecommendationRole,
 } from "@summonerkit/contracts";
 import { ChampionPerformancePanel } from "../components/ChampionPerformancePanel";
+import { BuildRecommendationsPanel } from "../components/BuildRecommendationsPanel";
+import { ChampionPoolCoachPanel } from "../components/ChampionPoolCoachPanel";
+import { DraftCoachPanel } from "../components/DraftCoachPanel";
+import { GuidanceHealthPanel } from "../components/GuidanceHealthPanel";
+import { MatchHistoryPanel } from "../components/MatchHistoryPanel";
+import { MatchReportCardsPanel } from "../components/MatchReportCardsPanel";
+import { PatchCenterPanel } from "../components/PatchCenterPanel";
 import { RuneRecommendationsPanel } from "../components/RuneRecommendationsPanel";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 
 const audiences: Array<{ id: RuneRecommendationAudience | "all"; label: string }> = [
   { id: "all", label: "All samples" },
@@ -27,8 +35,9 @@ export function InsightsPage({ snapshot, onCommand }: { snapshot: CompanionSnaps
     ...collection.champions.map((champion) => champion.id),
     ...insights.performance.champions.map((record) => record.championId),
     ...insights.runes.recommendations.map((recommendation) => recommendation.championId),
+    ...insights.coach.builds.map((build) => build.championId),
     ...(session.championSelect.selectedChampionId ? [session.championSelect.selectedChampionId] : []),
-  ])].sort((left, right) => (championById.get(left)?.name ?? String(left)).localeCompare(championById.get(right)?.name ?? String(right))), [championById, collection.champions, insights.performance.champions, insights.runes.recommendations, session.championSelect.selectedChampionId]);
+  ])].sort((left, right) => (championById.get(left)?.name ?? String(left)).localeCompare(championById.get(right)?.name ?? String(right))), [championById, collection.champions, insights.coach.builds, insights.performance.champions, insights.runes.recommendations, session.championSelect.selectedChampionId]);
   const preferredChampion = session.championSelect.selectedChampionId ?? insights.performance.champions[0]?.championId ?? availableChampionIds[0] ?? null;
   const liveRole = assignedRole(snapshot);
   const [championId, setChampionId] = useState<number | null>(preferredChampion);
@@ -44,18 +53,23 @@ export function InsightsPage({ snapshot, onCommand }: { snapshot: CompanionSnaps
   const recommendations = insights.runes.recommendations
     .filter((recommendation) => recommendation.championId === championId && recommendation.role === role && (audience === "all" || recommendation.audience === audience))
     .sort((left, right) => right.sampleSize - left.sampleSize);
+  const buildRecommendations = insights.coach.builds
+    .filter((build) => build.championId === championId && build.role === role && (audience === "all" || build.audience === audience))
+    .sort((left, right) => right.sampleSize - left.sampleSize);
   const performance = insights.performance.champions.find((record) => record.championId === championId) ?? null;
   const championName = championId ? championById.get(championId)?.name ?? `Champion ${championId}` : null;
 
   return (
     <div className="page insights-page">
       <header className="page-header page-header--split">
-        <div><p className="eyebrow">Runes and performance</p><h1>Recent evidence. Your actual results.</h1><p className="page-lede">Compare current high-elo and professional rune samples with your own locally calculated champion performance.</p></div>
+        <div><p className="eyebrow">Coach and builds</p><h1>More choices. Better reasons.</h1><p className="page-lede">Use current aggregate samples, your local results, and visible draft context without exposing private player data or making the decision for you.</p></div>
         <div className="insights-refresh-actions">
-          <button className="button button--secondary" type="button" disabled={insights.runes.status === "loading"} onClick={() => onCommand({ type: "insights.refreshRunes" })}><RefreshCw size={16} /> Runes</button>
+          <button className="button button--secondary" type="button" disabled={insights.runes.status === "loading"} onClick={() => onCommand({ type: "insights.refreshRunes" })}><RefreshCw size={16} /> Online guidance</button>
           <button className="button button--secondary" type="button" disabled={connection.status !== "connected" || insights.performance.status === "loading"} onClick={() => onCommand({ type: "insights.refreshPerformance" })}><RefreshCw size={16} /> Performance</button>
         </div>
       </header>
+
+      <GuidanceHealthPanel health={insights.guidance} />
 
       <section className="metric-strip" aria-label="Recent performance summary">
         <SummaryMetric icon={Swords} label="Games analyzed" value={insights.performance.summary.games} note={insights.performance.windowLabel} />
@@ -67,15 +81,31 @@ export function InsightsPage({ snapshot, onCommand }: { snapshot: CompanionSnaps
       <section className="insights-toolbar" aria-label="Champion and recommendation filters">
         <label><span>Champion</span><select value={championId ?? ""} onChange={(event) => setChampionId(event.target.value ? Number(event.target.value) : null)}><option value="">Choose a champion</option>{availableChampionIds.map((id) => <option key={id} value={id}>{championById.get(id)?.name ?? `Champion ${id}`}</option>)}</select></label>
         <label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value as RuneRecommendationRole)}>{roles.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
-        <div className="segmented-control insights-audience" aria-label="Player sample">
-          {audiences.map((option) => <button key={option.id} className={audience === option.id ? "active" : ""} type="button" aria-pressed={audience === option.id} onClick={() => setAudience(option.id)}>{option.label}</button>)}
-        </div>
+        <SegmentedTabs className="insights-audience" value={audience} options={audiences.map((option) => ({ value: option.id, label: option.label }))} onChange={setAudience} label="Player sample" />
       </section>
 
+      <div className="coach-overview-grid">
+        <DraftCoachPanel snapshot={snapshot} onCommand={onCommand} />
+        <PatchCenterPanel snapshot={snapshot} />
+      </div>
+
       <div className="insights-grid">
-        <RuneRecommendationsPanel runes={insights.runes} recommendations={recommendations} connectionStatus={connection.status} onCommand={onCommand} />
+        <BuildRecommendationsPanel coach={insights.coach} recommendations={buildRecommendations} spells={session.summonerSpells} />
         <ChampionPerformancePanel performance={insights.performance} championName={championName} record={performance} />
       </div>
+
+      <RuneRecommendationsPanel runes={insights.runes} recommendations={recommendations} connectionStatus={connection.status} onCommand={onCommand} />
+
+      <div className="coach-review-grid">
+        <ChampionPoolCoachPanel performance={insights.performance} champions={collection.champions} />
+        <MatchReportCardsPanel performance={insights.performance} champions={collection.champions} championId={championId} />
+      </div>
+
+      <MatchHistoryPanel
+        performance={insights.performance}
+        champions={collection.champions}
+        selectedChampionId={championId}
+      />
     </div>
   );
 }

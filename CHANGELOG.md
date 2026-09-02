@@ -3,6 +3,136 @@
 All notable user-visible changes are recorded here. Versions follow Semantic
 Versioning while the project is in prerelease.
 
+## [Unreleased]
+
+### Added
+
+- Added a desktop-only Test Lab that runs the real automation decision engine
+  against sanitized ready-check and champion-select scenarios. It verifies
+  primary choices, backups, teammate-intent protection, manual overrides,
+  missing timers, and exhausted priorities without connecting to League or
+  issuing an LCU write.
+- First-class online-guidance health with provider, schema, publication age,
+  anonymous observation counts, champion coverage, current-patch coverage, and
+  truthful cache or endpoint errors in Coach & Builds and Diagnostics.
+- Publisher-side validation that blocks empty, stale, oversized, duplicated,
+  malformed, or identity-bearing guidance output before it reaches users.
+- Relay protocol `/health` endpoint and desktop verification of the relay,
+  allowed mobile origin, and PWA shell before mobile configuration is saved.
+- Mobile evidence-freshness status and a complete production deployment and
+  real-phone verification checklist.
+- Post-deployment smoke tests for the GitHub Pages feed, Cloudflare relay, PWA,
+  and Windows release workflow.
+
+### Changed
+
+- Replaced the prior MIT grant for original SummonerKit material with the
+  SummonerKit Source-Available License v1.0. Private evaluation and running an
+  unmodified official release remain permitted; reuse, public forks,
+  redistribution, modification, and commercial deployment now require written
+  permission. Third-party licenses remain unchanged.
+- A new ready check now hides the desktop window to the tray and shows a native
+  Windows notification, keeping the League client visible while the local
+  engine, client tab, and mobile channel continue running.
+- Hardened the local and mobile boundaries: validated loopback ports and
+  origins, strict bridge command envelopes, bounded HTTP/WebSocket payloads,
+  safer plugin-template encoding, stricter League lockfile parsing, pinned
+  relay socket endpoints, bounded LCU and encrypted envelopes, strict
+  client-tab authorization, pairing request timeouts without redirects, and
+  additional relay response security headers. CI checkouts no longer persist
+  the workflow token in the repository configuration.
+- Added Windows startup registration with a hidden tray launch, automatic
+  League reconnect detection, optional League and Rose desktop-window reveals,
+  and synchronized controls in Setup, Overview, and the tray menu. New installs
+  enable the three startup preferences; existing saved choices are retained.
+- Added a registered Windows app link so **Start & reconnect** in the League
+  client can open the desktop engine after an explicit click and retry the
+  authenticated local bridge with bounded backoff.
+- Added a Mobile Control shortcut on Overview plus a live QR expiry countdown;
+  claimed or expired pairing secrets are cleared from the desktop UI and active
+  pairing state, with a private-link fallback when a phone camera cannot scan
+  the code.
+- Added one atomic **Disable all automation** action to the desktop, League tab,
+  tray, and encrypted phone control. The phone can stop automation but cannot
+  enable it. League-tab snapshots now omit desktop paths, configured service
+  URLs, account cache keys, and real device identifiers; concurrent settings
+  writes are serialized, and invalid settings are preserved before recovery.
+- Ready-check responses now send the LCU-compatible empty JSON payload and
+  confirm the live player response when League applies the action but leaves
+  the HTTP request open. Manual desktop/mobile responses use the same adapter.
+- Mobile pairing links now react to same-page QR navigation immediately instead
+  of requiring a browser reload.
+- CI now enforces coverage floors for desktop services, automation core, and
+  mobile pairing paths, including a real authenticated HTTPS/WebSocket fake LCU.
+  GitHub vulnerability alerts, automated fixes, and CodeQL analysis now cover
+  repository and dependency regressions alongside Dependabot.
+- Converted the Electron Forge Vite entry configurations to explicit ESM
+  modules and preserved the single-file preload build with Vite's current
+  `codeSplitting: false` option, removing deprecated build warnings.
+- Public PWA deployment now requires a configured Riot publisher key instead of
+  silently shipping without online runes and builds.
+- The aggregate schema-v2 feed now includes anonymous publication metadata for
+  cohort size, platform coverage, lookback window, patches, and observations.
+- Client-tab plugin version advanced to 0.11.6 so existing installations can
+  detect and repair the updated Coach & Builds surface, shared icon, and desktop
+  recovery link.
+- Staged the client surface and Pengu template inside the integrity-protected
+  application archive, enabled explicit Electron fuse validation, tightened
+  renderer and loopback content policies, and rejected unknown command fields.
+- Grouped navigation by user intent, remembered the last valid page per surface,
+  improved short-window and responsive layouts, and added accessible segmented
+  filter controls.
+
+[Unreleased]: https://github.com/MohamedMagdy2208/SummonerKit/compare/v0.9.0-beta.1...HEAD
+
+## [0.10.0-beta.1] - 2026-08-24
+
+### Added
+
+- Filterable overall and champion-specific match history with role, queue,
+  result, period, and recent-form visualization.
+- First-party server-side Riot rune aggregation publisher with anonymous output
+  and scheduled GitHub Pages delivery.
+- Searchable champion pick/ban priorities, named queue selection, accessible
+  reordering, validation, and profile preview.
+- Desktop first-run Setup page with unified health checks and client-tab repair.
+- Collection intelligence for duplicate loot, wishlist overlap, upcoming
+  expiry, and listed essence value.
+- Desktop mobile-relay configuration protected by Windows credential
+  encryption, plus a Cloudflare deployment workflow.
+- Installable mobile controls with local queue/draft notifications and
+  authenticated reconnect recovery.
+- Dependabot ownership rules and SHA-256 release checksums.
+- Capability-detected Online and Away presence controls shared by the desktop
+  dashboard and League client tab.
+- Ordered primary and backup pick/ban plans editable from both desktop and the
+  Rose client tab through a narrow local-only command.
+- Clickable automation On/Off controls on Overview and synchronized Windows tray
+  shortcuts for presence, automation features, execution mode, and disabling
+  every automation feature at once.
+- Coach & Builds workspace with three explainable live-draft choices, aggregate
+  completed builds and spell pairs, post-game report cards, champion-pool
+  coaching, personalized patch readiness, and a compact mobile coach view.
+- Schema-v2 anonymous guidance publisher output for builds, ally/enemy draft
+  co-occurrence signals, and optional curated patch-impact records, while the
+  desktop remains compatible with schema-v1 rune feeds.
+
+### Changed
+
+- SummonerKit now defaults to its published first-party rune feed while still
+  allowing a private HTTPS override.
+- Performance privacy documentation now describes identity-free recent-match
+  rows in addition to per-champion aggregates.
+- The packaged desktop renderer now uses a private, traversal-checked
+  `summonerkit://` protocol with Electron's extra `file://` privileges disabled.
+- Unknown League-managed presence values remain visible as managed states and
+  are never mislabeled as true Offline.
+- Champion-select automation now revalidates an existing hover, switches to the
+  next backup when needed, protects teammate pick intents, and records named
+  fallback reasons in the audit timeline.
+
+[0.10.0-beta.1]: https://github.com/MohamedMagdy2208/SummonerKit/releases/tag/v0.10.0-beta.1
+
 ## [0.9.0-beta.1] - 2026-08-24
 
 ### Added

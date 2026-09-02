@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PRODUCT_NAME } from "@summonerkit/contracts";
 import type {
   AutomationAuditEvent,
   AutomationProfile,
@@ -14,7 +15,7 @@ import {
 import type { CompanionStore } from "./companion-store";
 import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";
-import type { LcuClient, LcuEvent } from "./lcu/lcu-client";
+import { LcuRequestTimeoutError, type LcuClient, type LcuEvent } from "./lcu/lcu-client";
 import { RunePageService } from "./rune-page-service";
 
 interface ReadyCheckState {
@@ -63,6 +64,9 @@ const roleMap: Record<string, AutomationProfile["role"]> = {
   SUPPORT: "utility",
 };
 
+const READY_CHECK_RETRY_DELAY_MS = 250;
+const MAX_READY_CHECK_RETRIES = 1;
+
 export class AutomationService {
   private readonly engine = new AutomationEngine();
   private readonly runePages: RunePageService;
@@ -74,6 +78,8 @@ export class AutomationService {
   private readySessionId: string | null = null;
   private readyStartedAt: number | null = null;
   private readyEvaluationComplete = false;
+  private readyRetryCount = 0;
+  private readyRetryPending = false;
   private champSession: ChampSelectSession | null = null;
   private champSessionId: string | null = null;
   private queueId: number | null = null;
@@ -131,11 +137,16 @@ export class AutomationService {
         this.readySessionId = `ready-${Date.now()}`;
         this.readyStartedAt = Date.now();
         this.readyEvaluationComplete = false;
+        this.readyRetryCount = 0;
+        this.readyRetryPending = false;
       }
       if (!this.readyCheck || this.readyCheck.state !== "InProgress") {
+        if (this.readySessionId) this.engine.resetSession(this.readySessionId);
         this.readySessionId = null;
         this.readyStartedAt = null;
         this.readyEvaluationComplete = false;
+        this.readyRetryCount = 0;
+        this.readyRetryPending = false;
       }
     }
 
@@ -173,6 +184,8 @@ export class AutomationService {
       this.readySessionId = `ready-${Date.now()}`;
       this.readyStartedAt = Date.now();
       this.readyEvaluationComplete = false;
+      this.readyRetryCount = 0;
+      this.readyRetryPending = false;
     }
     this.champSession = session;
     if (session) this.champSessionId = this.sessionIdentifier(session);
@@ -208,8 +221,9 @@ export class AutomationService {
         profile,
         settings: persisted.automation,
       });
+      this.readyRetryPending = false;
       await this.applyEffects(effects, profile);
-      if (effects.length > 0) this.readyEvaluationComplete = true;
+      if (effects.length > 0 && !this.readyRetryPending) this.readyEvaluationComplete = true;
       if (!this.readyEvaluationComplete && this.readyStartedAt !== null) {
         const remaining = profile.readyCheckDelayMs - (Date.now() - this.readyStartedAt);
         this.scheduleEvaluate(Math.max(25, remaining + 25));
@@ -225,6 +239,8 @@ export class AutomationService {
         pickableChampionIds: this.pickable,
         bannableChampionIds: this.bannable,
         alliedIntentChampionIds: this.alliedIntentIds(),
+        teammateIntentChampionIds: this.teammateIntentIds(),
+        championNames: new Map(this.store.getSnapshot().collection.champions.map((champion) => [champion.id, champion.name])),
         profile,
         settings: persisted.automation,
       };
@@ -267,7 +283,7 @@ export class AutomationService {
     try {
       this.assertEffectStillValid(effect);
       if (effect.type === "acceptReadyCheck") {
-        await this.lcu.post("/lol-matchmaking/v1/ready-check/accept");
+        await this.lcu.respondToReadyCheck("accept");
       } else {
         await this.lcu.patch(`/lol-champ-select/v1/session/actions/${effect.actionId}`, {
           championId: effect.championId,
@@ -277,9 +293,20 @@ export class AutomationService {
       }
       this.recordAudit(effect.decision, "success");
     } catch (error) {
+      if (
+        effect.type === "acceptReadyCheck" &&
+        error instanceof LcuRequestTimeoutError &&
+        this.readyCheck?.state === "InProgress" &&
+        this.readyRetryCount < MAX_READY_CHECK_RETRIES
+      ) {
+        this.readyRetryCount += 1;
+        this.readyRetryPending = true;
+        this.engine.releaseReadyCheck(effect.decision.sessionId);
+        this.scheduleEvaluate(READY_CHECK_RETRY_DELAY_MS);
+      }
       this.logger.warn("Automation effect failed", { effect: effect.type, error: String(error) });
       this.recordAudit(effect.decision, "failed");
-      this.notify("SummonerKit automation", `${effect.decision.action} failed: ${String(error)}`);
+      this.notify(`${PRODUCT_NAME} automation`, `${effect.decision.action} failed: ${String(error)}`);
       throw error;
     }
   }
@@ -295,6 +322,9 @@ export class AutomationService {
     if (!available.has(effect.championId)) throw new Error("The selected champion is no longer available.");
     if (action.type === "ban" && this.alliedIntentIds().has(effect.championId)) {
       throw new Error("The ban now conflicts with an allied intent.");
+    }
+    if (action.type === "pick" && this.teammateIntentIds().has(effect.championId)) {
+      throw new Error("The pick now conflicts with a teammate's intent.");
     }
   }
 
@@ -316,7 +346,7 @@ export class AutomationService {
     this.pending.set(action.id, { action, effect, profile });
     this.publishPending();
     this.scheduleEvaluate(20_025);
-    this.notify("SummonerKit confirmation", `${action.action}: ${action.reason}`);
+    this.notify(`${PRODUCT_NAME} confirmation`, `${action.action}: ${action.reason}`);
   }
 
   private expirePending(): void {
@@ -354,6 +384,15 @@ export class AutomationService {
   private alliedIntentIds(): Set<number> {
     return new Set(
       (this.champSession?.myTeam ?? [])
+        .map((member) => member.championPickIntent ?? member.championId ?? 0)
+        .filter((championId) => championId > 0),
+    );
+  }
+
+  private teammateIntentIds(): Set<number> {
+    return new Set(
+      (this.champSession?.myTeam ?? [])
+        .filter((member) => member.cellId !== this.champSession?.localPlayerCellId)
         .map((member) => member.championPickIntent ?? member.championId ?? 0)
         .filter((championId) => championId > 0),
     );
@@ -461,10 +500,13 @@ export class AutomationService {
 
   private clearSessions(): void {
     if (this.champSessionId) this.engine.resetSession(this.champSessionId);
+    if (this.readySessionId) this.engine.resetSession(this.readySessionId);
     this.readyCheck = null;
     this.readySessionId = null;
     this.readyStartedAt = null;
     this.readyEvaluationComplete = false;
+    this.readyRetryCount = 0;
+    this.readyRetryPending = false;
     this.champSession = null;
     this.champSessionId = null;
     this.queueId = null;

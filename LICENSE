@@ -1,21 +1,88 @@
-MIT License
+SummonerKit Source-Available License v1.0
 
-Copyright (c) 2026 Mohamed Magdy
+Copyright (c) 2026 Mohamed Magdy. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+IMPORTANT: This is a proprietary, source-available license. It is not an
+open-source license. Unless this license expressly says otherwise, no right to
+copy, modify, fork, redistribute, publish, sell, sublicense, or commercialize
+SummonerKit is granted.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Scope and ownership
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+"Work" means the original SummonerKit source code, documentation,
+configuration, tests, and original artwork or branding in this repository that
+was authored for SummonerKit by Mohamed Magdy. Mohamed Magdy retains all
+copyright and other rights in the Work that are not expressly licensed below.
+
+This license does not claim ownership of third-party software, dependencies,
+data, services, game assets, names, logos, trademarks, or other material that
+is identified in THIRD_PARTY_NOTICES.md. Those materials remain subject to
+their own terms.
+
+2. Limited personal evaluation permission
+
+Subject to this license, you may:
+
+* view and download the Work from the official SummonerKit repository;
+* study the Work privately for evaluation or educational purposes;
+* run one unmodified official SummonerKit release on Windows devices that you
+  own or control; and
+* make one private backup copy for those purposes.
+
+This permission is personal, non-exclusive, non-transferable, and limited to
+non-commercial use. Access to a public GitHub repository does not grant any
+additional permission to reuse the Work.
+
+3. Restrictions
+
+Without prior written permission from Mohamed Magdy, you may not:
+
+* publish, mirror, redistribute, sell, rent, sublicense, or otherwise make the
+  Work or a substantial portion of it available to another person;
+* copy the Work into another product, repository, service, or distribution;
+* modify, adapt, translate, merge, or create derivative works from the Work;
+* use the Work to provide a hosted, managed, or commercial service;
+* remove or obscure copyright, license, attribution, or security notices; or
+* use the SummonerKit name, logo, or other branding to imply sponsorship,
+  endorsement, or an official connection.
+
+The restrictions above apply to source code, compiled binaries, packaged
+applications, and substantial portions of the documentation or artwork. They
+do not restrict rights that cannot lawfully be restricted under applicable law.
+
+4. No other rights
+
+No patent, trademark, trade name, publicity, or other intellectual-property
+license is granted. No right to use Riot Games or any third-party name, mark,
+asset, or service is granted by this license.
+
+5. Third-party materials
+
+Third-party components and references listed in THIRD_PARTY_NOTICES.md are not
+relicensed by this document. If you receive a copy that contains a third-party
+component, you must comply with that component's license and preserve its
+notices. Where third-party terms conflict with this license, the third-party
+terms control that component only.
+
+6. Termination
+
+The permissions in section 2 terminate automatically if you breach this
+license. On termination, you must stop using the Work and delete copies that
+you are not otherwise entitled to retain under applicable law. Sections 1, 4,
+5, 7, and 8 survive termination.
+
+7. Disclaimer
+
+THE WORK IS PROVIDED "AS IS" WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY LAW, MOHAMED MAGDY IS NOT LIABLE FOR ANY CLAIM, LOSS, OR DAMAGE
+ARISING FROM THE WORK OR ITS USE.
+
+8. Permission requests
+
+For a commercial license, redistribution permission, a contribution
+agreement, or another exception, contact Mohamed Magdy through the official
+repository: https://github.com/MohamedMagdy2208/SummonerKit
+
+Permissions not expressly granted in this license are reserved.

@@ -1,4 +1,4 @@
-import type { CompanionCommand, CommandResult } from "@summonerkit/contracts";
+import type { CompanionCommand, CommandResult, StartupSettings } from "@summonerkit/contracts";
 import { companionCommandSchema } from "@summonerkit/contracts";
 import type { AutomationService } from "./automation-service";
 import type { AramService } from "./aram-service";
@@ -9,6 +9,7 @@ import type { IntegrationService } from "./integration-service";
 import type { InsightsService } from "./insights-service";
 import type { LeagueSessionService } from "./league-session-service";
 import type { PenguManager } from "./pengu-manager";
+import type { PresenceService } from "./presence-service";
 import type { RemoteService } from "./remote-service";
 import type { SettingsStore } from "./settings-store";
 import type { AppLogger } from "./logger";
@@ -22,13 +23,17 @@ interface CommandRouterDependencies {
   integrations: IntegrationService;
   insights: InsightsService;
   leagueSession: LeagueSessionService;
+  presence: PresenceService;
   pengu: PenguManager;
   clientTabActivation: ClientTabActivationService;
   remote: RemoteService;
   openDesktop: () => void;
+  setStartupEnabled: (enabled: boolean) => void;
   chooseExecutable: (id: "rose" | "deceive") => Promise<string | null>;
   logger: AppLogger;
 }
+
+const automationFeatureKeys = ["autoAccept", "autoPick", "autoBan", "autoSpells", "autoRunes"] as const;
 
 export class CommandRouter {
   constructor(private readonly dependencies: CommandRouterDependencies) {}
@@ -51,6 +56,19 @@ export class CommandRouter {
     switch (command.type) {
       case "desktop.open":
         this.dependencies.openDesktop();
+        return;
+      case "startup.setEnabled": {
+        if (command.setting === "launchOnWindowsStartup") {
+          this.dependencies.setStartupEnabled(command.enabled);
+        }
+        const settings = await this.dependencies.settings.update((draft) => {
+          draft.startup[command.setting] = command.enabled;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.startup = settings.startup; });
+        return;
+      }
+      case "presence.set":
+        await this.dependencies.presence.setAvailability(command.availability);
         return;
       case "automation.acknowledgeRisk": {
         const settings = await this.dependencies.settings.update((draft) => {
@@ -84,12 +102,31 @@ export class CommandRouter {
         this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
         return;
       }
+      case "automation.disableAll": {
+        this.dependencies.automation.clearPending();
+        const settings = await this.dependencies.settings.update((draft) => {
+          for (const feature of automationFeatureKeys) draft.automation[feature] = false;
+        });
+        this.dependencies.store.update((snapshot) => { snapshot.automation = settings.automation; });
+        return;
+      }
       case "profile.save": {
         const settings = await this.dependencies.settings.update((draft) => {
           const index = draft.profiles.findIndex((profile) => profile.id === command.profile.id);
           if (index >= 0) draft.profiles[index] = command.profile;
           else draft.profiles.push(command.profile);
         });
+        this.dependencies.store.update((snapshot) => { snapshot.profiles = settings.profiles; });
+        return;
+      }
+      case "profile.setChampionPriorities": {
+        const settings = await this.dependencies.settings.update((draft) => {
+          const profile = draft.profiles.find((candidate) => candidate.id === command.profileId);
+          if (!profile) throw new Error("That automation profile no longer exists.");
+          profile.pickPriority = command.pickPriority;
+          profile.banPriority = command.banPriority;
+        });
+        this.dependencies.automation.clearPending();
         this.dependencies.store.update((snapshot) => { snapshot.profiles = settings.profiles; });
         return;
       }
@@ -181,6 +218,9 @@ export class CommandRouter {
       case "remote.revoke":
         await this.dependencies.remote.revoke(command.deviceId);
         return;
+      case "remote.configure":
+        await this.dependencies.remote.configure(command.relayUrl, command.mobileUrl, command.adminSecret);
+        return;
       case "readyCheck.accept":
       case "readyCheck.decline":
       case "queue.start":
@@ -213,16 +253,20 @@ export class CommandRouter {
 
   private successMessage(command: CompanionCommand): string {
     if (command.type === "desktop.open") return "Desktop app opened.";
+    if (command.type === "startup.setEnabled") return startupSettingMessage(command.setting, command.enabled);
+    if (command.type === "presence.set") return `Presence changed to ${command.availability}.`;
     if (command.type === "collection.refresh") return "Collection synchronized.";
-    if (command.type === "insights.refreshRunes") return "Rune recommendations refreshed.";
+    if (command.type === "insights.refreshRunes") return "Online coaching guidance refreshed.";
     if (command.type === "insights.refreshPerformance") return "Champion performance refreshed.";
     if (command.type === "runes.applyRecommendation") return "Recommended runes applied to a SummonerKit page.";
     if (command.type === "collection.toggleFavorite") return "Favorite updated.";
     if (command.type === "collection.toggleWishlist") return "Wishlist updated.";
     if (command.type === "profile.save") return "Automation profile saved.";
+    if (command.type === "profile.setChampionPriorities") return "Champion fallback plan saved.";
     if (command.type === "profile.delete") return "Automation profile deleted.";
     if (command.type === "automation.acknowledgeRisk") return "Risk acknowledgement saved locally.";
     if (command.type === "automation.setEnabled") return `${command.feature} ${command.enabled ? "enabled" : "disabled"}.`;
+    if (command.type === "automation.disableAll") return "All automation features are disabled.";
     if (command.type === "automation.setMode") return `Automation mode changed to ${command.mode}.`;
     if (command.type === "automation.confirm") return "Automation action confirmed.";
     if (command.type === "automation.dismiss") return "Automation action dismissed.";
@@ -232,7 +276,14 @@ export class CommandRouter {
     if (command.type === "doctor.refresh") return "Connection checks refreshed.";
     if (command.type === "aram.toggleFavoriteChampion") return "ARAM favorite updated.";
     if (command.type === "remote.revoke") return "Mobile device revoked.";
+    if (command.type === "remote.configure") return "Mobile relay configuration encrypted and saved.";
     if (command.type.startsWith("integration.")) return "Integration updated.";
     return "Command completed.";
   }
+}
+
+function startupSettingMessage(setting: keyof StartupSettings, enabled: boolean): string {
+  if (setting === "launchOnWindowsStartup") return `Start with Windows ${enabled ? "enabled" : "disabled"}.`;
+  if (setting === "openOnLeagueDetected") return `Open on League detection ${enabled ? "enabled" : "disabled"}.`;
+  return `Open on Rose detection ${enabled ? "enabled" : "disabled"}.`;
 }

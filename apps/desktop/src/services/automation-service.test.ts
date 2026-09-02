@@ -3,15 +3,18 @@ import { createDefaultSettings, type PersistedSettings } from "@summonerkit/core
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AutomationService } from "./automation-service";
 import { CompanionStore } from "./companion-store";
-import type { LcuClient } from "./lcu/lcu-client";
+import { LcuRequestTimeoutError, type LcuClient } from "./lcu/lcu-client";
 import type { AppLogger } from "./logger";
 import type { SettingsStore } from "./settings-store";
 
 class FakeLcu extends EventEmitter {
   patch = vi.fn(async () => undefined);
-  post = vi.fn(async () => undefined);
+  post = vi.fn(async (_endpoint: string, _body?: unknown) => undefined);
   put = vi.fn(async () => undefined);
   delete = vi.fn(async () => undefined);
+  respondToReadyCheck = vi.fn(async (response: "accept" | "decline") => {
+    await this.post(`/lol-matchmaking/v1/ready-check/${response}`, {});
+  });
   get = vi.fn(async (endpoint: string) => {
     if (endpoint.includes("pickable")) return [103];
     if (endpoint.includes("bannable")) return [238];
@@ -27,8 +30,9 @@ afterEach(() => services.splice(0).forEach((service) => service.stop()));
 
 function fixture(mode: PersistedSettings["automation"]["executionMode"]) {
   let settings = createDefaultSettings("test-token");
-  settings.automation = { ...settings.automation, riskAcknowledged: true, executionMode: mode, autoPick: true };
+  settings.automation = { ...settings.automation, riskAcknowledged: true, executionMode: mode, autoAccept: true, autoPick: true };
   settings.profiles[0]!.pickPriority = [103];
+  settings.profiles[0]!.readyCheckDelayMs = 0;
   const store = new CompanionStore(settings);
   const settingsStore = {
     get: () => structuredClone(settings),
@@ -76,5 +80,30 @@ describe("AutomationService execution modes", () => {
     await vi.waitFor(() => expect(store.getSnapshot().audit[0]?.result).toBe("planned"));
     expect(store.getSnapshot().audit[0]?.reason).toContain("Dry run:");
     expect(lcu.patch).not.toHaveBeenCalled();
+  });
+
+  it("sends an automatic ready-check response through the confirmed LCU adapter", async () => {
+    const { lcu } = fixture("automatic");
+    lcu.emit("event", {
+      uri: "/lol-matchmaking/v1/ready-check",
+      eventType: "Create",
+      data: { state: "InProgress", playerResponse: "None" },
+    });
+
+    await vi.waitFor(() => expect(lcu.respondToReadyCheck).toHaveBeenCalledWith("accept"));
+  });
+
+  it("retries once when live LCU state confirms that a timed-out accept was not applied", async () => {
+    const { lcu } = fixture("automatic");
+    lcu.respondToReadyCheck.mockRejectedValueOnce(
+      new LcuRequestTimeoutError("POST", "/lol-matchmaking/v1/ready-check/accept"),
+    );
+    lcu.emit("event", {
+      uri: "/lol-matchmaking/v1/ready-check",
+      eventType: "Create",
+      data: { state: "InProgress", playerResponse: "None" },
+    });
+
+    await vi.waitFor(() => expect(lcu.respondToReadyCheck).toHaveBeenCalledTimes(2));
   });
 });

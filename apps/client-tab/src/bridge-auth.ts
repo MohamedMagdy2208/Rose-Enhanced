@@ -1,6 +1,8 @@
 import { CLIENT_TAB_PROTOCOL_VERSION } from "@summonerkit/contracts";
 
 export const BRIDGE_AUTH_MESSAGE_TYPE = "summonerkit.auth";
+const bridgeTokenPattern = /^[A-Za-z0-9_-]{32,256}$/u;
+const pluginVersionPattern = /^[A-Za-z0-9._-]{1,40}$/u;
 
 export interface BridgeAuthorization {
   token: string;
@@ -21,13 +23,17 @@ function isBridgeAuthMessage(value: unknown): value is BridgeAuthMessage {
   }
 
   const candidate = value as Partial<BridgeAuthMessage>;
+  const protocolVersion = candidate.protocolVersion;
   return (
     candidate.type === BRIDGE_AUTH_MESSAGE_TYPE &&
     typeof candidate.token === "string" &&
-    candidate.token.length >= 32 &&
-    Number.isSafeInteger(candidate.protocolVersion) &&
+    bridgeTokenPattern.test(candidate.token) &&
+    typeof protocolVersion === "number" &&
+    Number.isSafeInteger(protocolVersion) &&
+    protocolVersion >= 0 &&
+    protocolVersion <= 100 &&
     typeof candidate.pluginVersion === "string" &&
-    candidate.pluginVersion.length > 0
+    pluginVersionPattern.test(candidate.pluginVersion)
   );
 }
 

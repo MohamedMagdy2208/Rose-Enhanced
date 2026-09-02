@@ -21,6 +21,7 @@ function connection(status: LcuConnectionState["status"], phase: string): LcuCon
       champSelect: false,
       runes: false,
       summonerSpells: false,
+      presence: false,
       clientTab: false,
     },
     connectedAt: null,

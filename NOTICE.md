@@ -1,13 +1,23 @@
-# Copyright notice
+# Copyright and licensing notice
 
-SummonerKit original source code, documentation, and original brand assets are
+## Original SummonerKit material
+
 Copyright © 2026 Mohamed Magdy.
 
-The source code is distributed under the MIT License in [LICENSE](LICENSE).
-That license allows use, copying, modification, and redistribution when its
-copyright and permission notice are preserved.
+Original SummonerKit source code, documentation, configuration, tests, and
+original project artwork or branding are covered by the [SummonerKit
+Source-Available License v1.0](LICENSE). The repository may be public so that
+people can evaluate the project, but public visibility does not make the
+project open source and does not authorize copying, forks, redistribution,
+modification, or commercial use.
 
-This notice does not claim ownership of League of Legends, Riot Games, Rose,
-Deceive, Mimic, LeagueAutoAccept, Pengu Loader, or their respective code,
-names, assets, copyrights, and trademarks. See
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The complete terms are in [LICENSE](LICENSE). This notice is a summary; the
+license text controls.
+
+## Ownership boundaries
+
+This project does not claim ownership of Riot Games, League of Legends, Rose,
+Deceive, Mimic, LeagueAutoAccept, Pengu Loader, npm dependencies, or any other
+third-party code, names, assets, data, services, copyrights, or trademarks.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the boundaries and
+required attributions.

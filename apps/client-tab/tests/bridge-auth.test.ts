@@ -1,6 +1,6 @@
 import { Window as HappyWindow } from "happy-dom";
 import { describe, expect, it } from "vitest";
-import { CLIENT_TAB_PLUGIN_VERSION } from "@summonerkit/contracts";
+import { CLIENT_TAB_PLUGIN_VERSION, CLIENT_TAB_PROTOCOL_VERSION } from "@summonerkit/contracts";
 import {
   BRIDGE_AUTH_MESSAGE_TYPE,
   receiveBridgeAuthorization,
@@ -19,7 +19,7 @@ describe("client-tab bridge authorization", () => {
         data: {
           type: BRIDGE_AUTH_MESSAGE_TYPE,
           token: "unrelated-token-with-at-least-thirty-two-characters",
-          protocolVersion: 4,
+          protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
           pluginVersion: CLIENT_TAB_PLUGIN_VERSION,
         },
         source: unrelatedWindow,
@@ -30,7 +30,7 @@ describe("client-tab bridge authorization", () => {
         data: {
           type: BRIDGE_AUTH_MESSAGE_TYPE,
           token: expectedToken,
-          protocolVersion: 4,
+          protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
           pluginVersion: CLIENT_TAB_PLUGIN_VERSION,
         },
         source: browserWindow.parent,
@@ -39,10 +39,28 @@ describe("client-tab bridge authorization", () => {
 
     await expect(authorizationPromise).resolves.toEqual({
       token: expectedToken,
-      protocolVersion: 4,
+      protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
       pluginVersion: CLIENT_TAB_PLUGIN_VERSION,
     });
     expect(browserWindow.location.search).toBe("");
     await Promise.all([browserWindow.happyDOM.close(), unrelatedWindow.happyDOM.close()]);
+  });
+
+  it("ignores malformed authorization envelopes", async () => {
+    const browserWindow = new HappyWindow({ url: "http://127.0.0.1:17654/client/" });
+    const authorizationPromise = receiveBridgeAuthorization(browserWindow as unknown as Window, 100);
+    browserWindow.dispatchEvent(
+      new browserWindow.MessageEvent("message", {
+        data: {
+          type: BRIDGE_AUTH_MESSAGE_TYPE,
+          token: "not-a-valid-bridge-token",
+          protocolVersion: CLIENT_TAB_PROTOCOL_VERSION,
+          pluginVersion: "client",
+        },
+        source: browserWindow.parent,
+      }),
+    );
+    await expect(authorizationPromise).rejects.toThrow("did not receive bridge authorization");
+    await browserWindow.happyDOM.close();
   });
 });

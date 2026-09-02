@@ -2,11 +2,16 @@ import { createHash } from "node:crypto";
 import type {
   ChampionPerformanceRecord,
   ChampionPerformanceSnapshot,
+  CoachItemRecord,
+  CoachSnapshot,
+  GuidanceFeedHealth,
+  PerformanceMatchRecord,
   RuneRecommendation,
   RuneRecommendationRole,
   RuneRecommendationsSnapshot,
   RunePerkRecord,
 } from "@summonerkit/contracts";
+import { createPerformanceReportCard } from "@summonerkit/core";
 import { z } from "zod";
 import type { CompanionStore } from "./companion-store";
 import { InsightsCache } from "./insights-cache";
@@ -16,7 +21,12 @@ import { RunePageService } from "./rune-page-service";
 
 const MAX_FEED_BYTES = 2 * 1024 * 1024;
 const MAX_RECOMMENDATIONS = 5_000;
+const MAX_BUILD_RECOMMENDATIONS = 5_000;
+const MAX_DRAFT_SIGNALS = 2_000;
+const MAX_PATCH_IMPACTS = 500;
 const PERFORMANCE_WINDOW = 100;
+const PERFORMANCE_PAGE_SIZE = 20;
+const DEFAULT_RUNE_FEED_URL = "https://mohamedmagdy2208.github.io/SummonerKit/data/runes-v1.json";
 
 const recommendationSchema = z.object({
   id: z.string().trim().min(1).max(160),
@@ -34,10 +44,62 @@ const recommendationSchema = z.object({
   generatedAt: z.string().datetime(),
 }).strict();
 
+const buildRecommendationSchema = z.object({
+  id: z.string().trim().min(1).max(180),
+  championId: z.number().int().positive(),
+  role: z.enum(["top", "jungle", "middle", "bottom", "utility", "aram"]),
+  queueId: z.number().int().nonnegative(),
+  audience: z.enum(["high-elo", "pro", "combined"]),
+  patch: z.string().trim().min(1).max(24),
+  itemIds: z.array(z.number().int().positive()).min(2).max(6),
+  spellIds: z.array(z.number().int().positive()).length(2),
+  sampleSize: z.number().int().positive(),
+  winRate: z.number().min(0).max(100),
+  pickRate: z.number().min(0).max(100),
+  generatedAt: z.string().datetime(),
+}).strict();
+
+const draftSignalSchema = z.object({
+  id: z.string().trim().min(1).max(180),
+  championId: z.number().int().positive(),
+  role: z.enum(["top", "jungle", "middle", "bottom", "utility", "aram"]),
+  queueId: z.number().int().nonnegative(),
+  audience: z.enum(["high-elo", "pro", "combined"]),
+  patch: z.string().trim().min(1).max(24),
+  sampleSize: z.number().int().positive(),
+  winRate: z.number().min(0).max(100),
+  synergyChampionIds: z.array(z.number().int().positive()).max(8),
+  toughMatchupChampionIds: z.array(z.number().int().positive()).max(8),
+  generatedAt: z.string().datetime(),
+}).strict();
+
+const patchImpactSchema = z.object({
+  id: z.string().trim().min(1).max(180),
+  patch: z.string().trim().min(1).max(24),
+  championId: z.number().int().positive().nullable(),
+  category: z.enum(["buff", "nerf", "adjustment", "item", "rune", "system"]),
+  title: z.string().trim().min(1).max(120),
+  summary: z.string().trim().min(1).max(360),
+  sourceUrl: z.string().url().max(2_048).nullable(),
+}).strict();
+
+const feedPublicationSchema = z.object({
+  generatedAt: z.string().datetime(),
+  observationCount: z.number().int().nonnegative(),
+  cohortSize: z.number().int().nonnegative(),
+  platforms: z.array(z.string().trim().min(2).max(8)).max(32),
+  lookbackDays: z.number().int().min(1).max(30),
+  patches: z.array(z.string().trim().min(1).max(24)).max(32),
+}).strict();
+
 const recommendationFeedSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
   providerName: z.string().trim().min(1).max(80),
+  publication: feedPublicationSchema.optional(),
   recommendations: z.array(recommendationSchema).max(MAX_RECOMMENDATIONS),
+  builds: z.array(buildRecommendationSchema).max(MAX_BUILD_RECOMMENDATIONS).default([]),
+  draftSignals: z.array(draftSignalSchema).max(MAX_DRAFT_SIGNALS).default([]),
+  patchImpacts: z.array(patchImpactSchema).max(MAX_PATCH_IMPACTS).default([]),
 }).strict();
 
 interface RuneFeedConfiguration {
@@ -45,7 +107,7 @@ interface RuneFeedConfiguration {
   token: string | null;
 }
 
-type InsightsCachePort = Pick<InsightsCache, "loadRunes" | "saveRunes" | "loadPerformance" | "savePerformance">;
+type InsightsCachePort = Pick<InsightsCache, "loadRunes" | "saveRunes" | "loadCoach" | "saveCoach" | "loadPerformance" | "savePerformance">;
 
 interface RawCurrentSummoner {
   puuid?: unknown;
@@ -53,6 +115,12 @@ interface RawCurrentSummoner {
 }
 
 interface RawPerk {
+  id?: unknown;
+  name?: unknown;
+  iconPath?: unknown;
+}
+
+interface RawItem {
   id?: unknown;
   name?: unknown;
   iconPath?: unknown;
@@ -76,8 +144,10 @@ interface RawParticipant {
 }
 
 interface RawGame {
+  gameId?: unknown;
   gameCreation?: unknown;
   gameDuration?: unknown;
+  queueId?: unknown;
   participants?: unknown;
   participantIdentities?: unknown;
 }
@@ -94,6 +164,8 @@ interface PerformanceObservation {
   damagePerMinute: number;
   visionPerMinute: number;
   score: number;
+  queueId: number | null;
+  role: RuneRecommendationRole;
   playedAt: string | null;
 }
 
@@ -150,6 +222,18 @@ function runePerks(candidate: unknown): RunePerkRecord[] {
     const iconPath = asText(raw.iconPath);
     return id && name ? [{ id, name: name.slice(0, 80), iconPath: iconPath?.slice(0, 1_024) ?? null }] : [];
   }).slice(0, 1_000);
+}
+
+function coachItems(candidate: unknown): CoachItemRecord[] {
+  if (!Array.isArray(candidate)) return [];
+  return candidate.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const raw = entry as RawItem;
+    const id = positiveInteger(raw.id);
+    const name = asText(raw.name);
+    const iconPath = asText(raw.iconPath);
+    return id && name ? [{ id, name: name.slice(0, 100), iconPath: iconPath?.slice(0, 1_024) ?? null }] : [];
+  }).slice(0, 5_000);
 }
 
 function rounded(candidate: number, digits = 1): number {
@@ -265,6 +349,7 @@ function observation(game: RawGame, identity: LocalIdentity): PerformanceObserva
   const damagePerMinute = ratio(nonNegative(stats.totalDamageDealtToChampions), minutes);
   const visionPerMinute = ratio(nonNegative(stats.visionScore), minutes);
   const kda = ratio(kills + assists, Math.max(1, deaths));
+  const role = roleFor(participant);
   return {
     championId,
     won: stats.win === true || stats.win === "Win" || stats.win === 1,
@@ -276,8 +361,43 @@ function observation(game: RawGame, identity: LocalIdentity): PerformanceObserva
     killParticipation: ratio(kills + assists, teamKillCount(game, participant)) * 100,
     damagePerMinute,
     visionPerMinute,
-    score: performanceScore({ role: roleFor(participant), kda, farmPerMinute: ratio(farm, minutes), damagePerMinute, visionPerMinute }),
+    score: performanceScore({ role, kda, farmPerMinute: ratio(farm, minutes), damagePerMinute, visionPerMinute }),
+    queueId: positiveInteger(game.queueId),
+    role,
     playedAt: matchPlayedAt(game),
+  };
+}
+
+function performanceMatch(
+  game: RawGame,
+  result: PerformanceObservation,
+  index: number,
+): PerformanceMatchRecord {
+  const fingerprint = [asText(game.gameId), result.playedAt, result.championId, index].join(":");
+  const kda = rounded(ratio(result.kills + result.assists, Math.max(1, result.deaths)), 2);
+  const farmPerMinute = rounded(ratio(result.farm, result.minutes), 2);
+  const killParticipation = rounded(result.killParticipation);
+  const damagePerMinute = rounded(result.damagePerMinute);
+  const visionPerMinute = rounded(result.visionPerMinute, 2);
+  return {
+    id: createHash("sha256").update(fingerprint).digest("hex").slice(0, 20),
+    championId: result.championId,
+    queueId: result.queueId,
+    role: result.role,
+    won: result.won,
+    kills: result.kills,
+    deaths: result.deaths,
+    assists: result.assists,
+    kda,
+    farm: Math.round(result.farm),
+    farmPerMinute,
+    killParticipation,
+    damagePerMinute,
+    visionPerMinute,
+    overallScore: result.score,
+    reportCard: createPerformanceReportCard({ role: result.role, kda, farmPerMinute, killParticipation, damagePerMinute, visionPerMinute, overallScore: result.score }),
+    durationMinutes: rounded(result.minutes, 1),
+    playedAt: result.playedAt,
   };
 }
 
@@ -353,12 +473,15 @@ export function aggregatePerformance(
   identity: LocalIdentity,
   updatedAt = new Date().toISOString(),
 ): ChampionPerformanceSnapshot {
-  const observations = historyGames(history).flatMap((game) => observation(game, identity) ?? []);
+  const observations = historyGames(history).flatMap((game, index) => {
+    const result = observation(game, identity);
+    return result ? [{ game, index, result }] : [];
+  });
   const aggregate = new Map<number, PerformanceAccumulator>();
-  for (const game of observations) {
-    const accumulator = aggregate.get(game.championId) ?? emptyAccumulator(game.championId);
-    addObservation(accumulator, game);
-    aggregate.set(game.championId, accumulator);
+  for (const { result } of observations) {
+    const accumulator = aggregate.get(result.championId) ?? emptyAccumulator(result.championId);
+    addObservation(accumulator, result);
+    aggregate.set(result.championId, accumulator);
   }
   const entries = [...aggregate.values()];
   const champions = entries.map(performanceRecord)
@@ -372,20 +495,29 @@ export function aggregatePerformance(
     updatedAt,
     summary: summarizedPerformance(performanceTotals(entries), champions.length),
     champions,
+    matches: observations
+      .map(({ game, index, result }) => performanceMatch(game, result, index))
+      .sort((left, right) => (Date.parse(right.playedAt ?? "") || 0) - (Date.parse(left.playedAt ?? "") || 0)),
     warnings: observations.length === 0 ? ["No eligible completed matches were found in the local history window."] : [],
   };
 }
 
-export function runeFeedConfiguration(environment: NodeJS.ProcessEnv): RuneFeedConfiguration | null {
-  const candidate = environment.SUMMONERKIT_BUILD_DATA_URL?.trim();
-  if (!candidate) return null;
+export function runeFeedConfiguration(environment: NodeJS.ProcessEnv): RuneFeedConfiguration {
+  const candidate = environment.SUMMONERKIT_BUILD_DATA_URL?.trim() || DEFAULT_RUNE_FEED_URL;
   const url = new URL(candidate);
   const localDevelopment = url.hostname === "127.0.0.1" || url.hostname === "localhost";
   if (url.protocol !== "https:" && !(url.protocol === "http:" && localDevelopment)) {
     throw new Error("The rune data feed must use HTTPS, except for local development.");
   }
-  if (url.username || url.password || url.hash) throw new Error("The rune data feed URL contains unsupported credentials or fragments.");
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("The rune data feed URL contains unsupported credentials, query parameters, or fragments.");
+  }
   return { url: url.toString(), token: environment.SUMMONERKIT_BUILD_DATA_TOKEN?.trim() || null };
+}
+
+function publicFeedEndpoint(value: string): string {
+  const url = new URL(value);
+  return `${url.origin}${url.pathname}`;
 }
 
 async function fetchRuneFeed(configuration: RuneFeedConfiguration): Promise<z.infer<typeof recommendationFeedSchema>> {
@@ -428,19 +560,97 @@ function recommendationWarnings(recommendations: RuneRecommendation[], patch: st
   return warnings;
 }
 
-async function onlineRecommendations(configuration: RuneFeedConfiguration, patch: string | null): Promise<RuneRecommendationsSnapshot> {
+function newestTimestamp(values: Array<{ generatedAt: string }>): string | null {
+  const newest = values.reduce((latest, value) => Math.max(latest, Date.parse(value.generatedAt) || 0), 0);
+  return newest > 0 ? new Date(newest).toISOString() : null;
+}
+
+interface GuidanceHealthInput {
+  configuration: RuneFeedConfiguration;
+  feed: z.infer<typeof recommendationFeedSchema>;
+  recommendations: RuneRecommendation[];
+  patch: string | null;
+  warnings: string[];
+}
+
+function onlineGuidanceHealth(input: GuidanceHealthInput): GuidanceFeedHealth {
+  const { configuration, feed, recommendations, patch, warnings } = input;
+  const currentPatch = patch?.match(/^\d+\.\d+/u)?.[0] ?? null;
+  const patches = [...new Set([
+    ...(feed.publication?.patches ?? []),
+    ...recommendations.map((entry) => entry.patch),
+    ...feed.builds.map((entry) => entry.patch),
+    ...feed.draftSignals.map((entry) => entry.patch),
+  ])].sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
+  const currentPatchCovered = currentPatch
+    ? patches.some((entry) => entry.startsWith(currentPatch))
+    : null;
+  const championIds = new Set([
+    ...recommendations.map((entry) => entry.championId),
+    ...feed.builds.map((entry) => entry.championId),
+    ...feed.draftSignals.map((entry) => entry.championId),
+  ]);
+  return {
+    status: warnings.length > 0 || recommendations.length === 0 || feed.builds.length === 0 || feed.draftSignals.length === 0
+      ? "degraded"
+      : "healthy",
+    source: "online",
+    endpoint: publicFeedEndpoint(configuration.url),
+    schemaVersion: feed.schemaVersion,
+    providerName: feed.providerName,
+    checkedAt: new Date().toISOString(),
+    generatedAt: feed.publication?.generatedAt
+      ?? newestTimestamp([...recommendations, ...feed.builds, ...feed.draftSignals]),
+    currentPatch,
+    currentPatchCovered,
+    observationCount: feed.publication?.observationCount ?? null,
+    cohortSize: feed.publication?.cohortSize ?? null,
+    lookbackDays: feed.publication?.lookbackDays ?? null,
+    coverage: {
+      recommendations: recommendations.length,
+      builds: feed.builds.length,
+      draftSignals: feed.draftSignals.length,
+      patchImpacts: feed.patchImpacts.length,
+      champions: championIds.size,
+      patches,
+    },
+    lastError: null,
+  };
+}
+
+async function onlineRecommendations(configuration: RuneFeedConfiguration, patch: string | null): Promise<{ guidance: GuidanceFeedHealth; runes: RuneRecommendationsSnapshot; coach: CoachSnapshot }> {
   const feed = await fetchRuneFeed(configuration);
   const recommendations = distinctRecommendations(feed.recommendations);
   const warnings = recommendationWarnings(recommendations, patch);
+  const updatedAt = new Date().toISOString();
+  const coachWarnings = [
+    ...(feed.builds.length === 0 ? ["The provider has no build samples yet."] : []),
+    ...(feed.draftSignals.length === 0 ? ["The provider has no draft evidence yet."] : []),
+  ];
   return {
-    status: "ready",
-    source: "online",
-    stale: warnings.length > 0,
-    providerName: feed.providerName,
-    updatedAt: new Date().toISOString(),
-    recommendations,
-    perks: [],
-    warnings,
+    guidance: onlineGuidanceHealth({ configuration, feed, recommendations, patch, warnings: [...warnings, ...coachWarnings] }),
+    runes: {
+      status: "ready",
+      source: "online",
+      stale: warnings.length > 0,
+      providerName: feed.providerName,
+      updatedAt,
+      recommendations,
+      perks: [],
+      warnings,
+    },
+    coach: {
+      status: "ready",
+      source: "online",
+      stale: warnings.length > 0,
+      providerName: feed.providerName,
+      updatedAt,
+      builds: feed.builds,
+      draftSignals: feed.draftSignals,
+      patchImpacts: feed.patchImpacts,
+      items: [],
+      warnings: [...warnings, ...coachWarnings],
+    },
   };
 }
 
@@ -464,8 +674,40 @@ export class InsightsService {
   async start(): Promise<void> {
     this.lcu.on("connected", this.onConnected);
     this.lcu.on("event", this.onEvent);
-    const cachedRunes = await this.cache.loadRunes();
-    if (cachedRunes) this.store.update((snapshot) => { snapshot.insights.runes = cachedRunes; });
+    const [cachedRunes, cachedCoach] = await Promise.all([this.cache.loadRunes(), this.cache.loadCoach()]);
+    if (cachedRunes || cachedCoach) {
+      this.store.update((snapshot) => {
+        if (cachedRunes) snapshot.insights.runes = cachedRunes;
+        if (cachedCoach) snapshot.insights.coach = cachedCoach;
+        const runes = cachedRunes?.recommendations ?? [];
+        const builds = cachedCoach?.builds ?? [];
+        const draftSignals = cachedCoach?.draftSignals ?? [];
+        const patches = [...new Set([
+          ...runes.map((entry) => entry.patch),
+          ...builds.map((entry) => entry.patch),
+          ...draftSignals.map((entry) => entry.patch),
+        ])].sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
+        snapshot.insights.guidance = {
+          ...snapshot.insights.guidance,
+          status: "degraded",
+          source: "cache",
+          providerName: cachedRunes?.providerName ?? cachedCoach?.providerName ?? null,
+          generatedAt: newestTimestamp([...runes, ...builds, ...draftSignals]),
+          coverage: {
+            recommendations: runes.length,
+            builds: builds.length,
+            draftSignals: draftSignals.length,
+            patchImpacts: cachedCoach?.patchImpacts.length ?? 0,
+            champions: new Set([
+              ...runes.map((entry) => entry.championId),
+              ...builds.map((entry) => entry.championId),
+              ...draftSignals.map((entry) => entry.championId),
+            ]).size,
+            patches,
+          },
+        };
+      });
+    }
     void this.refreshRunes();
   }
 
@@ -478,15 +720,11 @@ export class InsightsService {
 
   async refreshRunes(): Promise<void> {
     if (this.refreshingRunes) return;
-    let configuration: RuneFeedConfiguration | null;
+    let configuration: RuneFeedConfiguration;
     try {
       configuration = runeFeedConfiguration(process.env);
     } catch (error) {
-      this.publishRuneFailure(error);
-      return;
-    }
-    if (!configuration) {
-      this.publishMissingRuneFeed();
+      this.publishRuneFailure(error, null);
       return;
     }
     await this.refreshOnlineRunes(configuration);
@@ -494,14 +732,31 @@ export class InsightsService {
 
   private async refreshOnlineRunes(configuration: RuneFeedConfiguration): Promise<void> {
     this.refreshingRunes = true;
-    this.store.update((snapshot) => { snapshot.insights.runes.status = "loading"; });
+    this.store.update((snapshot) => {
+      snapshot.insights.runes.status = "loading";
+      snapshot.insights.guidance = {
+        ...snapshot.insights.guidance,
+        status: "checking",
+        endpoint: publicFeedEndpoint(configuration.url),
+        checkedAt: new Date().toISOString(),
+        currentPatch: this.lcu.getState().patch?.match(/^\d+\.\d+/u)?.[0] ?? null,
+        lastError: null,
+      };
+    });
     try {
-      const runes = await onlineRecommendations(configuration, this.lcu.getState().patch);
-      runes.perks = this.store.getSnapshot().insights.runes.perks;
-      this.store.update((snapshot) => { snapshot.insights.runes = runes; });
-      await this.cache.saveRunes(runes);
+      const online = await onlineRecommendations(configuration, this.lcu.getState().patch);
+      const current = this.store.getSnapshot().insights;
+      online.runes.perks = current.runes.perks;
+      online.coach.items = current.coach.items;
+      this.store.update((snapshot) => {
+        snapshot.insights.guidance = online.guidance;
+        snapshot.insights.runes = online.runes;
+        snapshot.insights.coach = online.coach;
+      });
+      await this.cache.saveRunes(online.runes);
+      await this.cache.saveCoach(online.coach);
     } catch (error) {
-      this.publishRuneFailure(error);
+      this.publishRuneFailure(error, configuration);
     } finally {
       this.refreshingRunes = false;
     }
@@ -544,7 +799,7 @@ export class InsightsService {
     this.endOfGameTimer = setTimeout(() => void this.refreshPerformance(), 8_000);
   };
 
-  private publishRuneFailure(error: unknown): void {
+  private publishRuneFailure(error: unknown, configuration: RuneFeedConfiguration | null): void {
     const message = error instanceof Error ? error.message : String(error);
     this.logger.warn("Rune recommendation refresh failed", { error: message });
     this.store.update((snapshot) => {
@@ -552,16 +807,20 @@ export class InsightsService {
       snapshot.insights.runes = current.recommendations.length > 0
         ? { ...current, status: "ready", stale: true, warnings: [...new Set([...current.warnings, message])] }
         : { ...current, status: "error", source: "none", stale: false, warnings: [message] };
-    });
-  }
-
-  private publishMissingRuneFeed(): void {
-    const message = "Online rune data is not configured. Set SUMMONERKIT_BUILD_DATA_URL to an approved versioned feed.";
-    this.store.update((snapshot) => {
-      const current = snapshot.insights.runes;
-      snapshot.insights.runes = current.recommendations.length > 0
-        ? { ...current, stale: true, warnings: [...new Set([...current.warnings, message])] }
-        : { ...current, status: "unavailable", source: "none", warnings: [message] };
+      const coach = snapshot.insights.coach;
+      snapshot.insights.coach = coach.builds.length > 0 || coach.draftSignals.length > 0
+        ? { ...coach, status: "ready", stale: true, warnings: [...new Set([...coach.warnings, message])] }
+        : { ...coach, status: "error", source: "none", stale: false, warnings: [message] };
+      const hasCachedGuidance = current.recommendations.length > 0 || coach.builds.length > 0 || coach.draftSignals.length > 0;
+      snapshot.insights.guidance = {
+        ...snapshot.insights.guidance,
+        status: hasCachedGuidance ? "degraded" : "unavailable",
+        source: hasCachedGuidance ? "cache" : "none",
+        endpoint: configuration ? publicFeedEndpoint(configuration.url) : snapshot.insights.guidance.endpoint,
+        checkedAt: new Date().toISOString(),
+        currentPatch: this.lcu.getState().patch?.match(/^\d+\.\d+/u)?.[0] ?? null,
+        lastError: message,
+      };
     });
   }
 
@@ -588,10 +847,38 @@ export class InsightsService {
     if (cached && this.store.getSnapshot().insights.performance.champions.length === 0) {
       this.store.update((snapshot) => { snapshot.insights.performance = cached; });
     }
-    const history = await this.lcu.get<unknown>(`/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=${PERFORMANCE_WINDOW}`);
+    const { history, partial } = await this.recentHistory();
     const performance = aggregatePerformance(history, identity);
+    if (partial) performance.warnings.push("League returned only part of the recent history window. Refresh to try the remaining matches again.");
     this.store.update((snapshot) => { snapshot.insights.performance = performance; });
     await this.cache.savePerformance(accountKey, performance);
+  }
+
+  private async recentHistory(): Promise<{ history: { games: { games: RawGame[] } }; partial: boolean }> {
+    const games = new Map<string, RawGame>();
+    let partial = false;
+    for (let begin = 0; begin < PERFORMANCE_WINDOW; begin += PERFORMANCE_PAGE_SIZE) {
+      let page: RawGame[];
+      try {
+        const response = await this.lcu.get<unknown>(
+          `/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=${begin}&endIndex=${Math.min(begin + PERFORMANCE_PAGE_SIZE, PERFORMANCE_WINDOW)}`,
+        );
+        page = historyGames(response);
+      } catch (error) {
+        if (games.size === 0) throw error;
+        partial = true;
+        break;
+      }
+      page.forEach((game, index) => {
+        const creation = asText(game.gameCreation);
+        const duration = asText(game.gameDuration);
+        const stableKey = asText(game.gameId)
+          ?? (creation || duration ? `${creation ?? "unknown"}:${duration ?? "unknown"}` : `page-${begin + index}`);
+        if (!games.has(stableKey)) games.set(stableKey, game);
+      });
+      if (page.length < PERFORMANCE_PAGE_SIZE) break;
+    }
+    return { history: { games: { games: [...games.values()].slice(0, PERFORMANCE_WINDOW) } }, partial };
   }
 
   private publishPerformanceFailure(error: unknown): void {
@@ -606,15 +893,17 @@ export class InsightsService {
   }
 
   private async refreshRuneCatalog(): Promise<void> {
-    let candidate: unknown;
     try {
-      candidate = await this.lcu.get<unknown>("/lol-game-data/assets/v1/perks.json");
+      const perks = runePerks(await this.lcu.get<unknown>("/lol-game-data/assets/v1/perks.json"));
+      if (perks.length > 0 && this.lcu.isConnected()) this.store.update((snapshot) => { snapshot.insights.runes.perks = perks; });
     } catch (error) {
       this.logger.debug("Rune perk catalog is unavailable on this client patch", { error: String(error) });
-      return;
     }
-    const perks = runePerks(candidate);
-    if (perks.length === 0 || !this.lcu.isConnected()) return;
-    this.store.update((snapshot) => { snapshot.insights.runes.perks = perks; });
+    try {
+      const items = coachItems(await this.lcu.get<unknown>("/lol-game-data/assets/v1/items.json"));
+      if (items.length > 0 && this.lcu.isConnected()) this.store.update((snapshot) => { snapshot.insights.coach.items = items; });
+    } catch (error) {
+      this.logger.debug("Item catalog is unavailable on this client patch", { error: String(error) });
+    }
   }
 }

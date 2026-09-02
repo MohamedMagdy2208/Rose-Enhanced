@@ -15,6 +15,7 @@ apps/desktop/out/
 apps/client-tab/dist/
 apps/mobile/dist/
 .playwright-cli/
+.firecrawl/
 output/playwright/
 packages/contracts/src/*.js
 packages/contracts/src/*.d.ts

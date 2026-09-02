@@ -1,0 +1,13 @@
+{
+  "name": "@summonerkit/data-publisher",
+  "version": "0.11.0-beta.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "publish-feed": "npm run build && node dist/index.js",
+    "verify-feed": "npm run build && node dist/verify.js"
+  }
+}

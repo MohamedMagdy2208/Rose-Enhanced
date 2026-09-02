@@ -8,6 +8,10 @@ function snapshot(): RemoteCompanionSnapshot {
     connection: { status: "connected", phase: "ChampSelect", patch: "26.16", lastError: null },
     champions: [],
     ownedSkins: [],
+    coach: {
+      guidance: { status: "unavailable", source: "none", providerName: null, generatedAt: null, currentPatchCovered: null, coverage: { recommendations: 0, builds: 0, draftSignals: 0, patchImpacts: 0, champions: 0, patches: [] } },
+      draftChoices: [], builds: [], items: [], patchImpacts: [],
+    },
     aram: { active: false, currentChampionId: null, bench: [], favoriteChampionIds: [], availableFavoriteChampionIds: [], rerollsRemaining: null, rerollPoints: null, updatedAt: null },
     session: {
       queue: { activity: "champ-select", lobbyAvailable: true, queueId: 420, searchState: null, canStart: false, canStop: false },

@@ -3,24 +3,37 @@ import path from "node:path";
 import { app } from "electron";
 import type {
   ChampionPerformanceSnapshot,
+  CoachSnapshot,
   RuneRecommendationsSnapshot,
 } from "@summonerkit/contracts";
+import { createPerformanceReportCard } from "@summonerkit/core";
 import type { AppLogger } from "./logger";
 
 interface InsightsCacheDocument {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   runes: RuneRecommendationsSnapshot | null;
+  coach?: CoachSnapshot | null;
   performance: Record<string, ChampionPerformanceSnapshot>;
 }
 
-const emptyDocument = (): InsightsCacheDocument => ({ schemaVersion: 1, runes: null, performance: {} });
+const emptyDocument = (): InsightsCacheDocument => ({ schemaVersion: 2, runes: null, coach: null, performance: {} });
 
 function validDocument(candidate: unknown): candidate is InsightsCacheDocument {
   if (!candidate || typeof candidate !== "object") return false;
   const document = candidate as Partial<InsightsCacheDocument>;
-  return document.schemaVersion === 1
+  return (document.schemaVersion === 1 || document.schemaVersion === 2)
     && (document.runes === null || typeof document.runes === "object")
     && Boolean(document.performance && typeof document.performance === "object");
+}
+
+function asCachedCoach(snapshot: CoachSnapshot): CoachSnapshot {
+  return {
+    ...snapshot,
+    status: "ready",
+    source: "cache",
+    stale: true,
+    warnings: ["Showing cached build and draft evidence while online data refreshes.", ...snapshot.warnings],
+  };
 }
 
 function asCachedRunes(snapshot: RuneRecommendationsSnapshot): RuneRecommendationsSnapshot {
@@ -39,6 +52,21 @@ function asCachedPerformance(snapshot: ChampionPerformanceSnapshot): ChampionPer
     status: "ready",
     source: "cache",
     stale: true,
+    matches: Array.isArray(snapshot.matches)
+      ? snapshot.matches.map((match) => ({
+        ...match,
+        role: match.role ?? null,
+        reportCard: match.reportCard ?? createPerformanceReportCard({
+          role: match.role ?? "top",
+          kda: match.kda,
+          farmPerMinute: match.farmPerMinute,
+          killParticipation: match.killParticipation,
+          damagePerMinute: match.damagePerMinute,
+          visionPerMinute: match.visionPerMinute,
+          overallScore: match.overallScore,
+        }),
+      }))
+      : [],
     warnings: ["Showing cached performance until League match history is available.", ...snapshot.warnings],
   };
 }
@@ -57,6 +85,19 @@ export class InsightsCache {
     if (snapshot.status !== "ready") return;
     const document = await this.loadDocument();
     document.runes = { ...snapshot, source: "online", stale: false };
+    await this.write(document);
+  }
+
+  async loadCoach(): Promise<CoachSnapshot | null> {
+    const snapshot = (await this.loadDocument()).coach;
+    return snapshot?.status === "ready" ? asCachedCoach(snapshot) : null;
+  }
+
+  async saveCoach(snapshot: CoachSnapshot): Promise<void> {
+    if (snapshot.status !== "ready") return;
+    const document = await this.loadDocument();
+    document.schemaVersion = 2;
+    document.coach = { ...snapshot, source: "online", stale: false };
     await this.write(document);
   }
 

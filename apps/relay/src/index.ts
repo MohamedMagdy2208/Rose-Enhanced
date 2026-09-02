@@ -39,12 +39,19 @@ const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_HTTP_BODY_BYTES = 16 * 1024;
 const MAX_MESSAGES_PER_TEN_SECONDS = 40;
 const MAX_SESSION_MS = 24 * 60 * 60 * 1_000;
+const RELAY_PROTOCOL_VERSION = 1;
+const p256Coordinate = /^[A-Za-z0-9_-]{43}$/u;
+const base64UrlPattern = /^[A-Za-z0-9_-]+$/u;
+const sha256HexPattern = /^[0-9a-f]{64}$/u;
 
 const responseSecurityHeaders = {
   "cache-control": "no-store",
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+  "cross-origin-resource-policy": "same-site",
   "permissions-policy": "camera=(), geolocation=(), microphone=()",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
 } as const;
 
 function json(value: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -64,43 +71,44 @@ async function digest(value: string): Promise<string> {
 }
 
 function fixedTimeEqual(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  let difference = left.length ^ right.length;
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
   }
   return difference === 0;
 }
 
-function p256PublicKey(candidate: unknown): candidate is JsonWebKey {
-  if (!candidate || typeof candidate !== "object") return false;
+function p256PublicKey(candidate: unknown): JsonWebKey | null {
+  if (!candidate || typeof candidate !== "object") return null;
   const key = candidate as JsonWebKey;
-  return key.kty === "EC"
+  if (!(key.kty === "EC"
     && key.crv === "P-256"
     && typeof key.x === "string"
-    && key.x.length > 0
-    && key.x.length <= 128
+    && p256Coordinate.test(key.x)
     && typeof key.y === "string"
-    && key.y.length > 0
-    && key.y.length <= 128;
+    && p256Coordinate.test(key.y))) return null;
+  return { kty: "EC", crv: "P-256", x: key.x, y: key.y };
 }
 
 function roomCreationRequest(body: Record<string, unknown>): RoomCreationRequest | null {
-  if (!p256PublicKey(body.desktopPublicKey)) return null;
+  const desktopPublicKey = p256PublicKey(body.desktopPublicKey);
+  if (!desktopPublicKey) return null;
   const requestedExpiry = typeof body.expiresInSeconds === "number" && Number.isFinite(body.expiresInSeconds)
     ? body.expiresInSeconds
     : 120;
   return {
-    desktopPublicKey: body.desktopPublicKey,
+    desktopPublicKey,
     expiresInSeconds: Math.min(Math.max(requestedExpiry, 30), 300),
   };
 }
 
 function mobileClaim(body: Record<string, unknown>): MobileClaim | null {
-  if (typeof body.pairingProof !== "string" || body.pairingProof.length < 32 || body.pairingProof.length > 256) return null;
+  const publicKey = p256PublicKey(body.publicKey);
+  if (typeof body.pairingProof !== "string" || body.pairingProof.length !== 43 || !base64UrlPattern.test(body.pairingProof)) return null;
   if (typeof body.deviceName !== "string" || body.deviceName.trim().length < 1 || body.deviceName.length > 80) return null;
-  if (!p256PublicKey(body.publicKey)) return null;
-  return { pairingProof: body.pairingProof, deviceName: body.deviceName.trim(), publicKey: body.publicKey };
+  if (!publicKey) return null;
+  return { pairingProof: body.pairingProof, deviceName: body.deviceName.trim(), publicKey };
 }
 
 async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
@@ -138,6 +146,21 @@ function preflightResponse(cors: Record<string, string>): Response {
       "access-control-allow-methods": "POST,GET,OPTIONS",
     },
   });
+}
+
+function relayHealthResponse(env: Env): Response {
+  const mobileOrigin = (() => {
+    try {
+      const url = new URL(env.MOBILE_ORIGIN);
+      return url.protocol === "https:" && url.origin === env.MOBILE_ORIGIN ? url.origin : null;
+    } catch {
+      return null;
+    }
+  })();
+  if (!mobileOrigin || !env.PAIRING_ADMIN_SECRET || env.PAIRING_ADMIN_SECRET.length < 32) {
+    return json({ status: "misconfigured", service: "summonerkit-relay", protocolVersion: RELAY_PROTOCOL_VERSION }, 503);
+  }
+  return json({ status: "ok", service: "summonerkit-relay", protocolVersion: RELAY_PROTOCOL_VERSION, mobileOrigin, checkedAt: new Date().toISOString() });
 }
 
 function relayAdminError(request: Request, env: Env, cors: Record<string, string>): Response | null {
@@ -204,6 +227,7 @@ export default {
     const url = new URL(request.url);
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return preflightResponse(cors);
+    if (request.method === "GET" && url.pathname === "/health") return relayHealthResponse(env);
     if (request.method === "POST" && url.pathname === "/rooms") return createRoom(request, env, url, cors);
     return forwardRoomRequest(request, env, url, cors);
   },
@@ -260,14 +284,19 @@ export class PairingRoom extends DurableObject<Env> {
     const body = await readJsonObject(request);
     if (!p256PublicKey(body.desktopPublicKey)
       || typeof body.desktopTokenHash !== "string"
+      || !sha256HexPattern.test(body.desktopTokenHash)
       || typeof body.expiresAt !== "number"
-      || body.expiresAt <= Date.now()) {
+      || !Number.isSafeInteger(body.expiresAt)
+      || body.expiresAt <= Date.now()
+      || body.expiresAt > Date.now() + 5 * 60 * 1_000) {
       return json({ error: "Room metadata is invalid." }, 400);
     }
+    const desktopPublicKey = p256PublicKey(body.desktopPublicKey);
+    if (!desktopPublicKey) return json({ error: "Room metadata is invalid." }, 400);
     const record: RoomRecord = {
       expiresAt: body.expiresAt,
       desktopTokenHash: body.desktopTokenHash,
-      desktopPublicKey: body.desktopPublicKey,
+      desktopPublicKey,
       mobileTokenHash: null,
       mobilePublicKey: null,
       deviceId: null,

@@ -14,3 +14,11 @@ export function formatRelativeTime(iso: string | null): string {
   if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
   return new Date(iso).toLocaleDateString();
 }
+
+export function formatLeaguePatch(version: string | null): string | null {
+  if (!version) return null;
+  const patch = version.match(/(?:^|\D)(\d{1,3}\.\d{1,3})(?=\D|$)/u)?.[1];
+  if (patch) return patch;
+  const compact = version.split(/[+\s]/u, 1)[0] ?? version;
+  return compact.length <= 16 ? compact : `${compact.slice(0, 15)}…`;
+}

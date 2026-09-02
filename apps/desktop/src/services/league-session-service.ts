@@ -197,7 +197,7 @@ export class LeagueSessionService {
       case "readyCheck.accept":
       case "readyCheck.decline":
         if (!state.readyCheck.active) throw new Error("No ready check is active.");
-        await this.lcu.post(`/lol-matchmaking/v1/ready-check/${command.type === "readyCheck.accept" ? "accept" : "decline"}`);
+        await this.lcu.respondToReadyCheck(command.type === "readyCheck.accept" ? "accept" : "decline");
         return;
       case "queue.start":
         if (!state.queue.canStart) throw new Error("Create or join an available lobby before starting queue.");

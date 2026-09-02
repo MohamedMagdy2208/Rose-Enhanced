@@ -29,7 +29,7 @@ export class AppLogger {
 
   private write(level: LogLevel, message: string, data?: unknown): void {
     const safeMessage = redactSensitive(message) as string;
-    const safeData = data === undefined ? "" : ` ${JSON.stringify(redactSensitive(data))}`;
+    const safeData = data === undefined ? "" : serializeLogData(data);
     const line = `${new Date().toISOString()} ${level.toUpperCase()} ${safeMessage}${safeData}`;
     this.recent.push(line);
     if (this.recent.length > MAX_RECENT_LINES) this.recent.shift();
@@ -65,5 +65,15 @@ export class AppLogger {
     const warning = `${new Date().toISOString()} WARN File logging disabled ${String(redactSensitive(String(error)))}`;
     this.recent.push(warning);
     if (this.recent.length > MAX_RECENT_LINES) this.recent.shift();
+  }
+}
+
+function serializeLogData(data: unknown): string {
+  try {
+    const serialized = JSON.stringify(redactSensitive(data));
+    return typeof serialized === "string" ? ` ${serialized}` : " [unserializable]";
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof RangeError) return " [unserializable]";
+    throw error;
   }
 }

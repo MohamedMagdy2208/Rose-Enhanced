@@ -5,7 +5,13 @@ import { isClientSurfaceCommandAllowed } from "./client-surface-policy";
 describe("client surface command policy", () => {
   const matchTimeCommands: CompanionCommand[] = [
     { type: "desktop.open" },
+    { type: "startup.setEnabled", setting: "launchOnWindowsStartup", enabled: true },
+    { type: "startup.setEnabled", setting: "openOnLeagueDetected", enabled: true },
+    { type: "startup.setEnabled", setting: "openOnRoseDetected", enabled: true },
+    { type: "presence.set", availability: "away" },
     { type: "automation.setEnabled", feature: "autoAccept", enabled: true },
+    { type: "automation.disableAll" },
+    { type: "profile.setChampionPriorities", profileId: "default", pickPriority: [103, 7], banPriority: [238, 157] },
     { type: "automation.confirm", pendingId: "e95f0048-7437-47c4-aa20-e630507dfe55" },
     { type: "collection.toggleFavorite", skinId: 103001 },
     { type: "aram.benchSwap", championId: 103 },
@@ -19,6 +25,7 @@ describe("client surface command policy", () => {
     { type: "integration.launch", integrationId: "rose" },
     { type: "clientTab.repair" },
     { type: "doctor.refresh" },
+    { type: "remote.configure", relayUrl: "https://relay.example", mobileUrl: "https://mobile.example", adminSecret: "x".repeat(32) },
   ];
 
   it.each(matchTimeCommands)("allows $type in the League client", (command) => {

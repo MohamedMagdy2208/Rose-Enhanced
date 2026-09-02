@@ -8,9 +8,12 @@ import type { LcuClient } from "./lcu/lcu-client";
 class FakeLcu extends EventEmitter {
   phase = "Lobby";
   patch = vi.fn(async () => undefined);
-  post = vi.fn(async () => undefined);
+  post = vi.fn(async (_endpoint: string, _body?: unknown) => undefined);
   put = vi.fn(async () => undefined);
   delete = vi.fn(async () => undefined);
+  respondToReadyCheck = vi.fn(async (response: "accept" | "decline") => {
+    await this.post(`/lol-matchmaking/v1/ready-check/${response}`, {});
+  });
   getState = () => ({ phase: this.phase });
   isConnected = () => true;
   get = vi.fn(async (endpoint: string) => {
@@ -76,6 +79,18 @@ describe("LeagueSessionService", () => {
     const { lcu, service } = await fixture();
     await service.executeManual({ type: "queue.start" });
     expect(lcu.post).toHaveBeenCalledWith("/lol-lobby/v2/lobby/matchmaking/search");
+  });
+
+  it("routes a manual ready-check response through the confirmed LCU adapter", async () => {
+    const { lcu, service } = await fixture();
+    lcu.emit("event", {
+      uri: "/lol-matchmaking/v1/ready-check",
+      eventType: "Create",
+      data: { state: "InProgress", playerResponse: "None" },
+    });
+
+    await service.executeManual({ type: "readyCheck.accept" });
+    expect(lcu.respondToReadyCheck).toHaveBeenCalledWith("accept");
   });
 
   it("rejects an allied intent ban and locks another available champion", async () => {

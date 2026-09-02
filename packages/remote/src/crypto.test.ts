@@ -4,6 +4,7 @@ import {
   deriveSessionKeys,
   EncryptedChannel,
   generateDeviceKeys,
+  parseEncryptedEnvelope,
   publicKeyFingerprint,
   verifyPairingProof,
 } from "./crypto";
@@ -57,5 +58,35 @@ describe("encrypted remote channel", () => {
 
     await expect(verifyPairingProof(proof, oneTimeSecret, "room-proof", mobileKeys.publicKey)).resolves.toBe(true);
     await expect(verifyPairingProof(proof, oneTimeSecret, "room-proof", substitutedKeys.publicKey)).resolves.toBe(false);
+  });
+
+  it("allows both authenticated peers to reset sequence state after a relay reconnect", async () => {
+    const desktopKeys = await generateDeviceKeys();
+    const mobileKeys = await generateDeviceKeys();
+    const desktopSession = await deriveSessionKeys("desktop", "room-reconnect", desktopKeys.privateKey, mobileKeys.publicKey);
+    const mobileSession = await deriveSessionKeys("mobile", "room-reconnect", mobileKeys.privateKey, desktopKeys.publicKey);
+    const firstDesktop = new EncryptedChannel("room-reconnect", desktopSession);
+    const firstMobile = new EncryptedChannel("room-reconnect", mobileSession);
+    await firstDesktop.open(await firstMobile.seal({ generation: 1 }));
+
+    const reconnectedDesktop = new EncryptedChannel("room-reconnect", desktopSession);
+    const reconnectedMobile = new EncryptedChannel("room-reconnect", mobileSession);
+    await expect(reconnectedDesktop.open(await reconnectedMobile.seal({ generation: 2 }))).resolves.toEqual({ generation: 2 });
+  });
+
+  it.each([
+    { sequence: 0 },
+    { nonce: "not-a-nonce" },
+    { ciphertext: "A".repeat(128 * 1024 + 1) },
+  ])("rejects malformed encrypted envelope fields", (change) => {
+    const envelope = {
+      version: 1 as const,
+      roomId: "room-envelope",
+      direction: "desktop-to-mobile" as const,
+      sequence: 1,
+      nonce: "A".repeat(16),
+      ciphertext: "A",
+    };
+    expect(() => parseEncryptedEnvelope({ ...envelope, ...change })).toThrow();
   });
 });

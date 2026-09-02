@@ -11,9 +11,11 @@ import {
 import type { LcuClient } from "./lcu/lcu-client";
 import type { AppLogger } from "./logger";
 
-const noCache: Pick<InsightsCache, "loadRunes" | "saveRunes" | "loadPerformance" | "savePerformance"> = {
+const noCache: Pick<InsightsCache, "loadRunes" | "saveRunes" | "loadCoach" | "saveCoach" | "loadPerformance" | "savePerformance"> = {
   loadRunes: vi.fn(async () => null),
   saveRunes: vi.fn(async () => undefined),
+  loadCoach: vi.fn(async () => null),
+  saveCoach: vi.fn(async () => undefined),
   loadPerformance: vi.fn(async () => null),
   savePerformance: vi.fn(async () => undefined),
 };
@@ -24,15 +26,17 @@ const logger = {
   debug: vi.fn(),
 } as unknown as AppLogger;
 
-function match(won: boolean, creation: number) {
+function match(won: boolean, creation: number, championId = 103, queueId = 420) {
   return {
+    gameId: `${creation}-${championId}`,
     gameCreation: creation,
     gameDuration: 1_800,
+    queueId,
     participantIdentities: [{ participantId: 1, player: { puuid: "local-player" } }],
     participants: [
       {
         participantId: 1,
-        championId: 103,
+        championId,
         teamId: 100,
         teamPosition: "MIDDLE",
         stats: {
@@ -76,7 +80,35 @@ describe("champion performance aggregation", () => {
       farmPerMinute: 7.33,
       killParticipation: 90,
     });
+    expect(snapshot.matches).toHaveLength(2);
+    expect(snapshot.matches[0]).toMatchObject({
+      championId: 103,
+      queueId: 420,
+      role: "middle",
+      won: true,
+      kills: 10,
+      deaths: 2,
+      assists: 8,
+      farm: 220,
+      farmPerMinute: 7.33,
+      durationMinutes: 30,
+      reportCard: expect.objectContaining({ grade: expect.any(String), strengths: expect.any(Array), focus: expect.any(Array) }),
+    });
     expect(JSON.stringify(snapshot)).not.toContain("local-player");
+  });
+
+  it("keeps recent matches in newest-first order for overall and champion-specific history", () => {
+    const snapshot = aggregatePerformance(
+      { games: { games: [
+        match(true, 1_779_000_000_000, 22, 450),
+        match(false, 1_781_000_000_000, 103, 420),
+        match(true, 1_780_000_000_000, 103, 440),
+      ] } },
+      { puuid: "local-player", summonerId: null },
+    );
+    expect(snapshot.matches.map((entry) => entry.championId)).toEqual([103, 103, 22]);
+    expect(snapshot.matches.filter((entry) => entry.championId === 103)).toHaveLength(2);
+    expect(snapshot.summary).toMatchObject({ games: 3, championsPlayed: 2 });
   });
 
   it("uses role-aware farm and vision targets", () => {
@@ -88,15 +120,34 @@ describe("champion performance aggregation", () => {
 });
 
 describe("online rune feed boundary", () => {
-  it("requires HTTPS outside local development", () => {
-    expect(() => runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://data.example/runes.json" })).toThrow("HTTPS");
-    expect(runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://127.0.0.1:8788/runes.json" })?.url).toContain("127.0.0.1");
+  it("uses the first-party published feed when no override is configured", () => {
+    expect(runeFeedConfiguration({}).url).toBe("https://mohamedmagdy2208.github.io/SummonerKit/data/runes-v1.json");
   });
 
-  it("accepts a valid versioned feed and publishes its provenance", async () => {
+  it("requires HTTPS outside local development", () => {
+    expect(() => runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://data.example/runes.json" })).toThrow("HTTPS");
+    expect(runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "http://127.0.0.1:8788/runes.json" }).url).toContain("127.0.0.1");
+    expect(() => runeFeedConfiguration({ SUMMONERKIT_BUILD_DATA_URL: "https://data.example/runes.json?token=secret" })).toThrow("query parameters");
+  });
+
+  it.each([
+    { schemaVersion: 1, extras: {}, expectedBuilds: 0, expectedHealth: "degraded" },
+    { schemaVersion: 2, extras: {
+      publication: { generatedAt: new Date().toISOString(), observationCount: 400, cohortSize: 48, platforms: ["EUW1", "KR"], lookbackDays: 14, patches: ["26.16"] },
+      builds: [{
+        id: "ahri-middle-build-26.16", championId: 103, role: "middle", queueId: 420, audience: "combined", patch: "26.16",
+        itemIds: [3089, 3135, 6655], spellIds: [4, 14], sampleSize: 200, winRate: 53.1, pickRate: 31.4, generatedAt: new Date().toISOString(),
+      }],
+      draftSignals: [{
+        id: "ahri-middle-draft-26.16", championId: 103, role: "middle", queueId: 420, audience: "combined", patch: "26.16",
+        sampleSize: 200, winRate: 53.1, synergyChampionIds: [64], toughMatchupChampionIds: [238], generatedAt: new Date().toISOString(),
+      }],
+      patchImpacts: [{ id: "26.16-ahri", patch: "26.16", championId: 103, category: "buff", title: "Ahri", summary: "A curated test summary.", sourceUrl: "https://example.com/patch" }],
+    }, expectedBuilds: 1, expectedHealth: "healthy" },
+  ])("accepts schema v$schemaVersion and publishes its provenance", async ({ schemaVersion, extras, expectedBuilds, expectedHealth }) => {
     vi.stubEnv("SUMMONERKIT_BUILD_DATA_URL", "https://data.example/runes.json");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion,
       providerName: "SummonerKit approved Riot aggregation",
       recommendations: [{
         id: "ahri-middle-combined-26.16",
@@ -113,6 +164,7 @@ describe("online rune feed boundary", () => {
         pickRate: 38.2,
         generatedAt: new Date().toISOString(),
       }],
+      ...extras,
     }), { status: 200, headers: { "content-type": "application/json" } })));
     const lcu = { getState: () => ({ patch: "26.16.1" }), isConnected: () => false } as unknown as LcuClient;
     const store = new CompanionStore(createDefaultSettings("test-token"));
@@ -120,6 +172,27 @@ describe("online rune feed boundary", () => {
     await service.refreshRunes();
     expect(store.getSnapshot().insights.runes).toMatchObject({ status: "ready", source: "online", providerName: "SummonerKit approved Riot aggregation" });
     expect(store.getSnapshot().insights.runes.recommendations).toHaveLength(1);
+    expect(store.getSnapshot().insights.coach).toMatchObject({ status: "ready", source: "online", providerName: "SummonerKit approved Riot aggregation" });
+    expect(store.getSnapshot().insights.coach.builds).toHaveLength(expectedBuilds);
+    expect(store.getSnapshot().insights.guidance).toMatchObject({ status: expectedHealth, source: "online", schemaVersion, currentPatchCovered: true });
+    if (schemaVersion === 2) expect(store.getSnapshot().insights.guidance).toMatchObject({ observationCount: 400, cohortSize: 48, lookbackDays: 14 });
+  });
+
+  it("reports an unavailable endpoint truthfully without discarding local performance", async () => {
+    vi.stubEnv("SUMMONERKIT_BUILD_DATA_URL", "https://data.example/runes.json");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("missing", { status: 404 })));
+    const lcu = { getState: () => ({ patch: "26.16.1" }), isConnected: () => false } as unknown as LcuClient;
+    const store = new CompanionStore(createDefaultSettings("test-token"));
+    const service = new InsightsService(lcu, store, logger, noCache);
+    await service.refreshRunes();
+    expect(store.getSnapshot().insights.guidance).toMatchObject({
+      status: "unavailable",
+      source: "none",
+      endpoint: "https://data.example/runes.json",
+      currentPatch: "26.16",
+      lastError: "Rune data provider returned HTTP 404.",
+    });
+    expect(store.getSnapshot().insights.performance.status).toBe("idle");
   });
 });
 

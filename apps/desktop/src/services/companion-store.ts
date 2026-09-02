@@ -18,13 +18,14 @@ const capabilities = {
   champSelect: false,
   runes: false,
   summonerSpells: false,
+  presence: false,
   clientTab: false,
 };
 
 const initialIntegrations: IntegrationState[] = [
   { id: "rose", name: "Rose", installed: false, running: false, managedProcess: false, executablePath: null, version: null, lastError: null },
   { id: "deceive", name: "Deceive", installed: false, running: false, managedProcess: false, executablePath: null, version: null, lastError: null },
-  { id: "pengu", name: "Client tab", installed: false, running: false, managedProcess: false, executablePath: null, version: "1.1.6", lastError: null },
+  { id: "pengu", name: "SummonerKit client tab", installed: false, running: false, managedProcess: false, executablePath: null, version: "1.1.6", lastError: null },
 ];
 
 function leagueDoctorCheck(snapshot: CompanionSnapshot): ConnectionDoctorCheck {
@@ -103,8 +104,10 @@ export class CompanionStore extends EventEmitter {
     this.snapshot = {
       revision: 0,
       connection: { status: "discovering", phase: "Waiting for League", region: null, locale: null, patch: null, capabilities: { ...capabilities }, connectedAt: null, lastError: null },
+      presence: { status: "unavailable", availability: null, updatedAt: null, lastError: "Connect to League to manage presence." },
       collection: { status: "idle", source: "none", stale: false, patch: null, accountKey: null, updatedAt: null, progress: { totalSkins: 0, ownedSkins: 0, lootSkins: 0, favoriteSkins: 0, wishlistSkins: 0, completionPercent: 0 }, champions: [], warnings: [] },
       automation: settings.automation,
+      startup: settings.startup,
       pendingAutomation: [],
       profiles: settings.profiles,
       audit: [],
@@ -134,6 +137,22 @@ export class CompanionStore extends EventEmitter {
       },
       session: emptyLeagueSessionState(),
       insights: {
+        guidance: {
+          status: "idle",
+          source: "none",
+          endpoint: null,
+          schemaVersion: null,
+          providerName: null,
+          checkedAt: null,
+          generatedAt: null,
+          currentPatch: null,
+          currentPatchCovered: null,
+          observationCount: null,
+          cohortSize: null,
+          lookbackDays: null,
+          coverage: { recommendations: 0, builds: 0, draftSignals: 0, patchImpacts: 0, champions: 0, patches: [] },
+          lastError: null,
+        },
         runes: {
           status: "idle",
           source: "none",
@@ -142,6 +161,18 @@ export class CompanionStore extends EventEmitter {
           updatedAt: null,
           recommendations: [],
           perks: [],
+          warnings: [],
+        },
+        coach: {
+          status: "idle",
+          source: "none",
+          stale: false,
+          providerName: null,
+          updatedAt: null,
+          builds: [],
+          draftSignals: [],
+          patchImpacts: [],
+          items: [],
           warnings: [],
         },
         performance: {
@@ -153,12 +184,15 @@ export class CompanionStore extends EventEmitter {
           updatedAt: null,
           summary: { games: 0, championsPlayed: 0, winRate: 0, kda: 0, farmPerMinute: 0, overallScore: 0 },
           champions: [],
+          matches: [],
           warnings: [],
         },
       },
       remote: {
         status: "unavailable",
         relayConfigured: false,
+        relayUrl: settings.remoteConfiguration.relayUrl,
+        mobileUrl: settings.remoteConfiguration.mobileUrl,
         activeDeviceId: null,
         lastError: null,
       },
